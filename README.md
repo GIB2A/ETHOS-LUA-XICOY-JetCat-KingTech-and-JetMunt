@@ -1,12 +1,9 @@
 # GIBA — Xicoy ProHub Turbine Telemetry Widget (ETHOS) — V1.1
 
-Repository: `https://github.com/GIB2A/ETHOS-LUA-XICOY`
-
 **Widget name shown on the radio (ETHOS):** `GIBA - Xicoy ProHUb - V1.1  Corsica fly dream`  
-**Widget key (internal):** `GIB2A`  
 **Version:** `1.1.0` (see `VERSION`)
 
-An **ETHOS Lua widget** for **FrSky ETHOS radios** that displays **Xicoy ProHub** turbine telemetry with a pilot-focused dashboard and a full configuration menu.
+An ETHOS Lua widget for FrSky ETHOS radios that displays Xicoy ProHub turbine telemetry with a pilot-focused dashboard and a full configuration menu — now also usable with other turbine brands (e.g., JetCat, KingTech, and JetMunt) via the widget’s multi-ECU handling / status decoding presets. 
 
 ---
 
