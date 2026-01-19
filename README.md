@@ -1,94 +1,280 @@
-# GIB2A — Xicoy ProHub Turbine Telemetry Widget (ETHOS)
+# GIBA — Xicoy ProHub Turbine Telemetry Widget (ETHOS) — V1.1
 
-This project is an **ETHOS widget** (a small dashboard) for **FrSky radios running ETHOS**, designed to display **Xicoy ProHub** turbine telemetry (RPM, EGT, pump, fuel, etc.).
+Repository: `https://github.com/GIB2A/ETHOS-LUA-XICOY`
 
-## What you need
-- A FrSky radio running **ETHOS 1.7** (or newer).
-- A **Xicoy ProHub** connected to your receiver on **S.Port / Smart Port**.
-- A **microSD card** in the radio.
+**Widget name shown on the radio (ETHOS):** `GIBA - Xicoy ProHUb - V1.1  Corsica fly dream`  
+**Widget key (internal):** `GIB2A`  
+**Version:** `1.1.0` (see `VERSION`)
 
----
-
-## Step 1 — Download the widget
-1. Open: `https://github.com/GIB2A/ETHOS-LUA-XICOY`
-2. Click the green **Code** button
-3. Click **Download ZIP**
-4. Extract/unzip the file (right click → Extract)
+An **ETHOS Lua widget** for **FrSky ETHOS radios** that displays **Xicoy ProHub** turbine telemetry with a pilot-focused dashboard and a full configuration menu.
 
 ---
 
-## Step 2 — Copy to the radio SD card
-1. Connect the radio by USB (or remove the SD card and use a card reader)
-2. Open the SD card on your computer
-3. Find the **SCRIPTS** folder  
-   - If it does not exist, create a folder called **SCRIPTS** at the root of the SD card
-4. Copy the **GIB2A** folder into **SCRIPTS**
+## Highlights
 
-When done, you must have exactly:
+- Dashboard (core)
+  - **RPM** (red zone > 100% up to 110%)
+  - **EGT** (Temp1) (red zone > 700°C)
+  - **Pump** (ADC4)
+  - **Fuel** (Fuel source)
+- **Real-value oriented display** (numbers are shown as values; not percentage labels)
+- **ECU Status** decoding with selectable ECU type
+  - Xicoy / JetCat / KingTech / Swiwin
+- **Setup Mode**
+  - **Basic**: core dashboard only
+  - **Expert**: adds optional ProHub Extended/Maximum sensors
+- Optional **Extended/Maximum** sensors (Expert)
+  - Ambient Temp, Pressure, Altitude, Fuel Flow, Serial Number, Battery Used, Engine Time, Pump Amperage
+- **Fuel alarms**
+  - Configurable thresholds (**Alert %**, **Critical %**)
+  - Optional audio file per threshold (voice directory)
+  - Haptic feedback on critical threshold crossing
+- Optional info on the left column
+  - ECU V (ADC3), Rx Batt, RSSI 2.4G, RSSI 900M, DIY1/DIY2/DIY3 (unit suffix displayed when available)
+- **Themes**
+  - Standard / High contrast / Amber
+
+---
+
+## Compatibility
+
+- **ETHOS**: tested/targeted for **1.7.x** (widgets require ETHOS 1.1.0+ in general)
+- **Radios**: FrSky radios running ETHOS with widget support (Tandem series, etc.)
+- **Telemetry**: **Xicoy ProHub** configured in **FrSky** mode (S.Port)
+
+---
+
+## Hardware / Telemetry chain
+
+Typical setup:
+
+`Turbine ECU → Xicoy ProHub → Receiver S.Port (Smart Port) → ETHOS Radio`
+
+**Important**: on some FrSky receivers you must explicitly assign a pin as **Smart Port (S.Port)** in the receiver options  
+(RF System menu → receiver → Options → assign Smart Port).
+
+---
+
+## Simple Guide (no GitHub jargon)
+
+### What you need
+- ETHOS **1.7+**
+- Xicoy **ProHub** connected to receiver **S.Port / Smart Port**
+- Radio SD card access (USB or card reader)
+
+### Step 1 — Download
+1. Open the repository page
+2. Click **Code → Download ZIP**
+3. Extract/unzip the file
+
+### Step 2 — Copy to SD card
+Copy the folder so you end up with:
 
 `SCRIPTS/GIB2A/main.lua`
 
-Important:
-- Do **not** create extra nested folders (example: `SCRIPTS/GIB2A/GIB2A/main.lua` is wrong).
-- `main.lua` must be directly inside `SCRIPTS/GIB2A/`.
+**Do not** create extra nested folders (example: `SCRIPTS/GIB2A/GIB2A/main.lua` is wrong).
 
----
+### Step 3 — Discover sensors (required)
 
-## Step 3 — Discover sensors (required)
-
-### A) Standard discovery (do this first)
-1. Power the model: **ECU + ProHub + receiver** (everything ON).
+#### A) Standard discovery (do this first)
+1. Power the model (**ECU + ProHub + receiver**).
 2. On the radio: **Telemetry → Discover sensors**  
    (depending on ETHOS version, it may be called **Discover new**).
-3. Wait a few seconds until sensors appear and values stabilize.
+3. Wait until sensors appear and values stabilize.
 
-### B) If some sensors do not appear (DIY Auto Detect)
-In some setups, some values are exposed as “DIY” sensors (examples: `0A10`, `0A20`, `0A30`).
-1. Go to: **Telemetry → DIY Sensor → Auto Detect**
-2. If you have more than one DIY sensor (for example `0A10` **and** `0A20`):
-   - Run **Auto Detect** for **one** sensor
-   - Go back to the Telemetry menu
-   - Run **Auto Detect** again for the other sensor
+#### B) If some sensors do not appear (DIY Auto Detect)
+Some setups expose certain values through “DIY” sensor discovery (e.g. `0A10`, `0A20`, `0A30`).
+1. Go to **Telemetry → DIY Sensor → Auto Detect**.
+2. If you have more than one (e.g. `0A10` and `0A20`), **detect one**, go back, then repeat Auto Detect for the next.
 
-### Tip (if a value is wrong or looks “stuck”)
-If a value has the wrong scale (too small/too large) or looks inaccurate, open the settings for that DIY sensor and adjust:
-- **Range**
-- **Precision / Unit**
+Tip (when scaling/precision looks wrong on some ECU types):
+- Edit the relevant DIY sensor settings and adjust **Range** / **Precision** as needed.
 
----
-
-## Step 4 — Add the widget to a screen
-1. On the radio: **Model → Display → Widgets**
-2. Add a widget and select **GIB2A**
-3. Open the widget settings and **assign the sensors** (RPM, Temp1/EGT, Fuel, etc.)
+### Step 4 — Add the widget
+**Model → Display → Widgets → Add widget →** `GIBA - Xicoy ProHUb - V1.1  Corsica fly dream`  
+Then open widget settings and **assign your discovered sensors**.
 
 ---
 
-## “Basic / Expert” setting (simple)
-- **Basic (0)**: essentials (RPM, EGT, Fuel, Pump)
-- **Expert (1)**: also enables **Extended/Maximum** fields (Ambient Temp, Pressure, Altitude, Fuel Flow, etc.) if your ProHub provides them
+## ProHub setup (FrSky)
+
+### 1) Select FrSky telemetry mode on the ProHub
+On the ProHub:
+1. Enter telemetry setup and select **FrSky**.
+2. Choose **Basic**, **Extended**, or **Maximum**.
+3. **Save** and power-cycle receiver/ProHub if required.
+
+Notes:
+- **Basic** uses standard FrSky addresses.
+- **Extended/Maximum** exposes more measurements; higher data volume can reduce refresh rate.
+
+### 2) Wiring
+- Connect a **servo patch cable** from a ProHub telemetry port to the receiver **S.Port**.
+
+### 3) Quick validation
+- When connected correctly, the ProHub telemetry LED should indicate a successful link (typically green).
+- On the radio, proceed with sensor discovery (section above).
 
 ---
 
-## Fuel alerts (optional)
-In the widget menu, you can set:
+## Widget installation (ETHOS)
+
+1. Download the repository (Code → Download ZIP) or clone it.
+2. Copy the folder **GIB2A** to your radio SD card so the final path is:
+
+   `SCRIPTS/GIB2A/main.lua`
+
+3. Reboot the radio.
+4. Add the widget:
+   - **Model → Display → Widgets**
+   - Select: `GIBA - Xicoy ProHUb - V1.1  Corsica fly dream`
+
+⚠️ Folder structure matters: if you accidentally create extra subfolders, the widget will not load.
+
+---
+
+## Widget configuration
+
+Open the widget settings and assign the **telemetry sources** discovered by ETHOS.
+
+### Setup Mode
+- **Basic**: core dashboard only
+- **Expert**: enables additional fields (Extended/Maximum sensors and extra sources)
+
+### ECU Type
+Select which ECU status table should be used for decoding:
+- Xicoy / JetCat / KingTech / Swiwin
+
+### Core fields (names exactly as in the configuration menu)
+- **STATUS ECU Sensor**: ECU status code sensor (often mapped to *Temp2* or *Status* depending on your ProHub mode)
+- **RPM Sensor** + **RPM Max (100%)**
+- **Temp1 Sensor (EGT)** + **EGT Max (100%)**
+- **ADC3 Sensor (ECU V)** (optional)
+- **ADC4 Sensor (Pump)** + **Pump Max (100%)**
+- **Fuel Sensor (Real)** + **Fuel Max (Full)**
+
+Notes:
+- The widget is designed to display **values** (RPM / °C / V / etc.) as numbers.
+- Depending on your ProHub mapping, **Fuel** is commonly a percentage (0..100). The widget displays the numeric value (without adding a “%” suffix).
+
+### Fuel alarms
 - **Fuel Alert (%)**
 - **Fuel Critical Alert (%)**
-- (optional) a sound file for Fuel Alert and/or Fuel Critical  
-The widget can also trigger haptic feedback when crossing the critical threshold.
+- **Fuel Alert Sound** (optional audio filename)
+- **Fuel Critical Sound** (optional audio filename)
+
+### Expert-only optional ProHub sensors
+- **Ambient Temp (°C)**
+- **Pressure (mBar)**
+- **Altitude (m)**
+- **Fuel Flow (ml/min)**
+- **Serial Number**
+- **Battery Used (mAh)**
+- **Engine Time (s)**
+- **Pump Amperage (0.1A)**
+
+### Extra sources (optional)
+- **DIY1 Sensor**, **DIY2 Sensor**, **DIY3 Sensor** (unit suffix shown when available)
+- **RxBatt Sensor**
+- **RSSI Sensor 1 (2.4G)**
+- **RSSI Sensor 2 (900M)**
+- **Chrono Source** (timer/time source)
+
+### Theme
+- Standard / High contrast / Amber
 
 ---
 
-## If it does not work (check these 3 items first)
-1) SD path is correct: `SCRIPTS/GIB2A/main.lua`  
-2) Sensors were discovered: run **Telemetry → Discover sensors** again  
-3) Receiver S.Port is configured: on some FrSky receivers you must assign a pin as **Smart Port (S.Port)** in the receiver RF options
+## ProHub FrSky measurement reference (useful for debugging)
+
+ProHub FrSky telemetry modes and corresponding measurements:
+
+### Basic
+- EGT: `0x400`
+- RPM: `0x500`
+- Throttle %: `0xA20`
+- Battery voltage: `0x900`
+- Pump RPM: `0x910`
+- Fuel remaining (%): `0xA10`
+- Status: `0x410`
+
+### Extended / Maximum (examples)
+- EGT: `0x4400`
+- RPM: `0x4401`
+- Ambient Temp: `0x4407`
+- Pressure: `0x4408`
+- Altitude: `0x4409`
+- Fuel Flow: `0x440A`
+- Serial Number: `0x440B` (Maximum only)
+- Battery Used: `0x440C` (Maximum only)
+- Engine Time: `0x440D` (Maximum only)
+- Pump Amperage: `0x440E` (Maximum only)
 
 ---
 
-## Need help?
-If you report an issue, please include:
+## Troubleshooting
+
+### Widget does not appear in the widget list
+- Confirm the SD path is exactly: `SCRIPTS/GIB2A/main.lua`
+- Remove any accidental nested folders and reboot.
+
+### No telemetry values / “No data”
+- Confirm ProHub is set to **FrSky** telemetry and the mode is saved.
+- Confirm ProHub → receiver **S.Port** wiring.
+- Confirm sensors are discovered (**Telemetry → Discover sensors**).
+- Check ProHub telemetry LED status.
+
+### Only some values are present
+- Try **DIY Auto Detect** for `0A10 / 0A20 / 0A30` style sensors.
+- Verify each widget source selection matches the expected unit (°C, rpm, %, mBar, etc.).
+- If using Extended/Maximum data, set **Setup Mode = Expert** in the widget.
+
+---
+
+## Safety (Xicoy turbine reminder)
+
+This widget is software-only; safe turbine operation remains your responsibility.
+
+Key safety points:
+- The engine is **NOT a toy**; misuse can cause damage and injury.
+- Keep a **CO₂ (or gaseous) fire extinguisher (≥2kg)** nearby; avoid powder extinguishers unless last resort.
+- Operate in **open air**; exhaust gases can cause asphyxiation.
+- Keep spectators/children/animals away (safety radius).
+- Protect eyes/ears during start.
+
+---
+
+## Design principles (project direction)
+
+- ETHOS-friendly architecture: keep `wakeup()` for logic/telemetry, `paint()` for drawing, `configure()` for UX.
+- Prefer stable, predictable behavior and minimal setup burden.
+
+---
+
+## Debug checklist (developer)
+
+When a user reports “no data”:
+1) Confirm SD path: `SCRIPTS/GIB2A/main.lua`  
+2) Confirm ProHub is in FrSky mode and receiver S.Port is configured  
+3) Confirm ETHOS telemetry discovery was run  
+4) Confirm widget sources are bound (at minimum: RPM / Temp1 / Fuel / Status)  
+5) Ask for: discovered sensor list (names + units) + screenshots  
+
+---
+
+## Support / Feedback
+
+Please open a GitHub Issue and include:
 - Radio model + ETHOS version
-- ProHub mode (Basic / Extended / Maximum)
+- ProHub firmware/version (if known)
+- Selected telemetry mode (Basic / Extended / Maximum)
+- Selected ECU type (Xicoy / JetCat / KingTech / Swiwin)
 - List of discovered sensors (names + units)
-- Screenshots of the Telemetry page and the widget settings
+- Screenshots (Telemetry page + widget settings)
+
+---
+
+## License / Disclaimer
+
+MIT — see `LICENSE`.  
+See `DISCLAIMER.md` for warranty/liability limitations.

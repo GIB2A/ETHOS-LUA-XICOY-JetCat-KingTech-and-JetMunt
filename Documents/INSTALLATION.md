@@ -3,7 +3,7 @@
 ## Expected SD card structure
 Copy the `GIB2A` folder to your radio SD card so you have:
 
-`SCRIPTS/WIDGETS/GIB2A/main.lua`
+`SCRIPTS/GIB2A/main.lua`
 
 Then reboot the radio and add the widget on a screen.
 

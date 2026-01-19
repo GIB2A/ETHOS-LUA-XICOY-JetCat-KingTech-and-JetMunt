@@ -1,4 +1,4 @@
--- GIB2A - Xicoy ProHub graphique (ETHOS 1.7)
+-- GIBA - Xicoy ProHUb - V1.1  Corsica fly dream
 -- Télémétrie Xicoy + menu de configuration
 -- Valeurs réelles (RPM, EGT, Pump, Fuel)
 -- Zones rouges : EGT > 700°C, RPM > 100% jusqu'à 110%
@@ -28,7 +28,7 @@ local function create(zone, options)
         adc4Source     = nil, adc4Value     = nil,   -- ADC4 (Pump command / volt)
 
         fuelSource               = nil, fuelValue             = nil,   -- Fuel remaining (valeur réelle)
-        fuelAlertPercent         = 30,                        -- Seuil alarme (% restant)
+        fuelAlertPercent         = 25,                        -- Seuil alarme (% restant)
         fuelCriticalAlertPercent = 5,                         -- Seuil alarme critique (% restant)
         fuelAlertFile            = nil,                       -- Son alarme fuel (seuil)
         fuelCriticalAlertFile    = nil,                       -- Son alarme fuel critique
@@ -62,6 +62,7 @@ local function create(zone, options)
         egtMax         = 900,                        -- EGT max (°C)
         pumpMax        = 100,                        -- Valeur max Pump
         telemetryMode  = 0,                          -- 0=Basic, 1=Advanced/Expert (ProHub Extended)
+        ecuType        = 0,                          -- 0=Xicoy, 1=JetCat, 2=KingTech, 3=Swiwin (ECU status decode)
         theme          = 0,                          -- 0=Std, 1=High contrast, 2=Amber
     }
 end
@@ -76,16 +77,16 @@ local msg_table_Xicoy = {
     [2]  = "SetIdle",
     [3]  = "Ready",
     [4]  = "Ignition",
-    [5]  = "FuelRamp",
-    [6]  = "Glow Test",
-    [7]  = "Running",
-    [8]  = "Stop",
-    [9]  = "FlameOut",
-    [10] = "SpeedLow",
-    [11] = "Cooling",
-    [12] = "Ignit.Bad",
-    [13] = "Start.Fail",
-    [14] = "AccelFail",
+    [5]  = "PreHeat",
+    [6]  = "Fuel Ramp",
+    [7]  = "Fuel Ignit",
+    [8]  = "Fuel Delay",
+    [9]  = "RPM Ramp",
+    [10] = "Set Slow",
+    [11] = "Set High",
+    [12] = "Learn LO",
+    [13] = "Learn HI",
+    [14] = "Start On",
     [15] = "Start On",
     [16] = "UserOff",
     [17] = "Failsafe",
@@ -102,7 +103,7 @@ local msg_table_Xicoy = {
     [28] = "SwitchOv",
     [29] = "Cal.Pump",
     [30] = "PumpLimi",
-    [31] = "NoEngine",
+    [31] = "Wait DS",
     [32] = "PwrBoost",
     [33] = "Run-Idle",
     [34] = "Run-Max",
@@ -110,12 +111,162 @@ local msg_table_Xicoy = {
     [36] = "No Status",
 }
 
-local function getStatusText(code)
+-------------------------------------------------------------
+-- Tables des statuts ECU (multi-marques)
+--  - Xicoy : codes 0..36 (table ci-dessus)
+--  - JetCat : codes 1..19 (Running) + 100..122 (Last Shutdown)
+--  - KingTech / Swiwin : à compléter (table fournie par l'utilisateur)
+-------------------------------------------------------------
+
+local msg_table_JetCat = {
+    -- Running
+    [1]   = "Wait for RPM (Standby / Start)",
+    [2]   = "Ignite",
+    [3]   = "Accelerate",
+    [4]   = "Stabilise",
+    [5]   = "Learn HI",
+    [6]   = "Learn LO",
+    [8]   = "Slow Down",
+    [10]  = "Auto Off",
+    [11]  = "Run (reg.)",
+    [12]  = "Acceleration delay",
+    [13]  = "SpeedReg (Speed Ctrl)",
+    [14]  = "Two-Shaft-Regulate",
+    [15]  = "PreHeat1",
+    [16]  = "PreHeat2",
+    [17]  = "MainFStrt",
+    [19]  = "Keros.FullOn",
+
+    -- Last Shutdown
+    [100] = "No Off-Condition defined",
+    [101] = "Shut down via RC",
+    [102] = "Over temperature",
+    [103] = "Ignition timeout",
+    [104] = "Acceleration time out",
+    [105] = "Acceleration too slow",
+    [106] = "Over RPM",
+    [107] = "Low RPM Off",
+    [108] = "Low Battery",
+    [109] = "Auto Off",
+    [110] = "Low temperature Off",
+    [111] = "Hi Temp Off",
+    [112] = "Glow Plug defective",
+    [113] = "Watch Dog Timer",
+    [114] = "Fail Safe Off",
+    [115] = "Manual Off (via GSU)",
+    [116] = "Power fail (Battery fail)",
+    [117] = "Temp Sensor fail (only during startup)",
+    [118] = "Fuel fail",
+    [119] = "Prop fail (only two shaft engines)",
+    [120] = "2nd engine fail",
+    [121] = "2nd engine differential too high",
+    [122] = "2nd engine no communication",
+}
+
+local msg_table_KingTech = {
+    [0]  = "Temp High",
+    [1]  = "Trim Low",
+    [2]  = "StickLo!",
+    [3]  = "Ready",
+    [4]  = "Ignition",
+    [5]  = "PrimeVap",
+    [6]  = "Glow Bad",
+    [7]  = "Running",
+    [8]  = "Stop",
+    [9]  = "FlameOut",
+    [10] = "SpeedLow",
+    [11] = "Cooling",
+    [12] = "Ignitor Bad",
+    [13] = "Start Bad",
+    [14] = "AccelFail",
+    [15] = "Start On",
+    [16] = "User Off",
+    [17] = "FailSafe",
+    [18] = "Low RPM",
+    [19] = "Reset",
+    [20] = "RxPwFail",
+    [21] = "PreHeat",
+    [22] = "Low Batt",
+    [23] = "Time Out",
+    [24] = "OverLoad",
+    [25] = "Ign. Fail",
+    [26] = "Burner On",
+    [27] = "GlowTest",
+    [28] = "GdReady",
+    [29] = "Weak Gas",
+    [30] = "Stage1",
+    [31] = "Stage2",
+    [32] = "Stage3",
+    [33] = "Unknown",
+    [34] = "CAB-Lost",
+    [35] = "Restart",
+    [36] = "No Status",
+}
+local msg_table_Swiwin = {
+    [21]  = "Restart",
+    [20]  = "Running",
+    [13]  = "Fuelramp",
+    [12]  = "Preheat",
+    [11]  = "Ignition",
+    [10]  = "Ready",
+    [9]   = "TestStarter",
+    [8]   = "TestPump",
+    [7]   = "TestGasValve",
+    [6]   = "TestFuelValve",
+    [5]   = "TestGlowPlug",
+    [1]   = "Cooling",
+    [0]   = "Stop",
+
+    [-1]  = "Time Out",
+    [-2]  = "Low Battery",
+    [-3]  = "GlowPlug Bad",
+    [-4]  = "Pump Anomaly",
+    [-5]  = "Starter failure",
+    [-6]  = "RPM Low",
+    [-7]  = "RPM Instability",
+    [-8]  = "High Temp",
+    [-9]  = "Low Temp",
+    [-10] = "TempSensorfail",
+    [-11] = "Gas Valve Bad",
+    [-12] = "Fuel Valve Bad",
+    [-13] = "Lost Signal",
+    [-14] = "StarterTemp High",
+    [-15] = "Pump Temp High",
+    [-16] = "Clutch failure",
+    [-17] = "Current overload",
+    [-18] = "Engine Offline",
+    [-30] = "no data",
+}
+
+
+local function getStatusText(ecuType, code)
     if code == nil then
         return "No data"
     end
-    return msg_table_Xicoy[code] or ("Code " .. tostring(code))
+
+    local t = ecuType or 0
+
+    if t == 0 then
+        return msg_table_Xicoy[code] or ("Code " .. tostring(code))
+    elseif t == 1 then
+        local txt = msg_table_JetCat[code]
+        if txt then
+            if code >= 100 then
+                return "SD: " .. txt
+            else
+                return "Run: " .. txt
+            end
+        end
+        return "Code " .. tostring(code)
+    elseif t == 2 then
+        return msg_table_KingTech[code] or ("Code " .. tostring(code))
+    elseif t == 3 then
+        return msg_table_Swiwin[code] or ("Code " .. tostring(code))
+    end
+
+    return "Code " .. tostring(code)
 end
+
 
 -------------------------------------------------------------
 -- Helper : lecture robuste d'une Source ETHOS
@@ -235,6 +386,13 @@ local function getGrey(level)
     return 0
 end
 
+
+local function getWhite()
+    if lcd.RGB then
+        return lcd.RGB(255, 255, 255)
+    end
+    return getGrey(31)
+end
 local function getAlertColor()
     if lcd.RGB then
         return lcd.RGB(255, 0, 0)
@@ -514,7 +672,7 @@ local function renderDashboard(widget, ctx)
 
             -- Texte valeur réelle centré
             local fuelText = ctx.fuelText or "--"
-            lcd.color(ctx.gaugeColor)
+            lcd.color(getWhite())
             lcd.font(FONT_STD)
             local tw, th = lcd.getTextSize(fuelText)
             lcd.drawText(
@@ -558,7 +716,7 @@ local function paint(widget)
     end
 
     -- Status ECU via Temp2
-    local statusText = getStatusText(widget.temp2Value)
+    local statusText = getStatusText(widget.ecuType, widget.temp2Value)
 
     local function mapToPercentRaw(value, maxValue)
         if type(value) ~= "number" or type(maxValue) ~= "number" or maxValue <= 0 then
@@ -642,7 +800,7 @@ local function paint(widget)
     -- RSSI & RxBatt texte
     local rssi1Label, rssi1Value = nil, nil
     if widget.rssi1Source then
-        rssi1Label = "RSSI 2.4G "
+        rssi1Label = "RSSI 2.4G :"
         if type(widget.rssi1Value) == "number" then
             rssi1Value = string.format("%d%%", math.floor(widget.rssi1Value + 0.5))
         else
@@ -652,7 +810,7 @@ local function paint(widget)
 
     local rssi2Label, rssi2Value = nil, nil
     if widget.rssi2Source then
-        rssi2Label = "RSSI 900M "
+        rssi2Label = "RSSI 900M :"
         if type(widget.rssi2Value) == "number" then
             rssi2Value = string.format("%d%%", math.floor(widget.rssi2Value + 0.5))
         else
@@ -662,7 +820,7 @@ local function paint(widget)
 
     local ecuVLabel, ecuVValue = nil, nil
     if widget.adc3Source then
-        ecuVLabel = "ECU V "
+        ecuVLabel = "ECU V :"
         if type(widget.adc3Value) == "number" then
             ecuVValue = string.format("%.1fV", widget.adc3Value)
         else
@@ -672,7 +830,7 @@ local function paint(widget)
 
     local rxBattLabel, rxBattValue = nil, nil
     if widget.rxbattSource then
-        rxBattLabel = "Rx Batt "
+        rxBattLabel = "Rx Batt :"
         if type(widget.rxbattValue) == "number" then
             rxBattValue = string.format("%.1fV", widget.rxbattValue)
         else
@@ -680,12 +838,27 @@ local function paint(widget)
         end
     end
 
+	-- Ajout des unités pour les capteurs DIY (affichage colonne gauche)
+	local function appendUnit(text, src)
+		if not text or text == "--" or text == "" or not src then return text end
+		if src.stringUnit then
+			local u = src:stringUnit()
+			if type(u) == "string" then
+				u = u:gsub("^%s+", ""):gsub("%s+$", "")
+				if u ~= "" then
+					return text .. u
+				end
+			end
+		end
+		return text
+	end
+
     -- DIY1 / DIY2 / DIY3 texte (affichés dans la colonne de gauche)
     local diy1Label, diy1Text = nil, nil
     if widget.diy1Source then
-        diy1Label = "DIY1 "
+        diy1Label = "DIY1 :"
         if type(widget.diy1Value) == "number" then
-            diy1Text = string.format("%.1f", widget.diy1Value)
+			diy1Text = appendUnit(string.format("%.1f", widget.diy1Value), widget.diy1Source)
         else
             diy1Text = "--"
         end
@@ -693,9 +866,9 @@ local function paint(widget)
 
     local diy2Label, diy2Text = nil, nil
     if widget.diy2Source then
-        diy2Label = "DIY2 "
+        diy2Label = "DIY2 :"
         if type(widget.diy2Value) == "number" then
-            diy2Text = string.format("%.1f", widget.diy2Value)
+			diy2Text = appendUnit(string.format("%.1f", widget.diy2Value), widget.diy2Source)
         else
             diy2Text = "--"
         end
@@ -703,9 +876,9 @@ local function paint(widget)
 
     local diy3Label, diy3Text = nil, nil
     if widget.diy3Source then
-        diy3Label = "DIY3 "
+        diy3Label = "DIY3 :"
         if type(widget.diy3Value) == "number" then
-            diy3Text = string.format("%.1f", widget.diy3Value)
+			diy3Text = appendUnit(string.format("%.1f", widget.diy3Value), widget.diy3Source)
         else
             diy3Text = "--"
         end
@@ -714,7 +887,8 @@ local function paint(widget)
     --------------------------------------------------------
     -- GÉOMÉTRIE GÉNÉRALE
     --------------------------------------------------------
-    local cxRight   = math.floor(w * 0.70)
+    local gaugeShiftX = 30
+    local cxRight   = math.floor(w * 0.70 + gaugeShiftX)
     local offsetY   = 30
 
     -- RPM : arc haut
@@ -728,11 +902,28 @@ local function paint(widget)
     local thicknessBig   = math.floor(radiusBig * 0.075)
     local innerBig       = radiusBig - thicknessBig
 
-    -- Pump Volt : descendue de 30 px et décalée de 20 px vers la droite
-    local cxLeft         = math.floor(w * 0.24 + 20)
+    -- Clamp to keep right gauges inside the widget area
+    if cxRight + radiusBig + margin > w then
+        cxRight = w - radiusBig - margin
+    end
+    if cxRight < radiusBig + margin then
+        cxRight = radiusBig + margin
+    end
+
+    -- Pump Volt : descendue de 30 px et décalée vers la droite pour libérer la colonne texte
+    local pumpShiftX     = 30  -- +30 px vers les arcs de cercle (droite)
+    local cxLeft         = math.floor(w * 0.24 + 40 + gaugeShiftX + pumpShiftX)
     local cyLeft         = math.floor(h * 0.45 + 30)
     local radiusSmall    = math.floor(math.min(w, h) * 0.22)
     local thicknessSmall = math.floor(radiusSmall * 0.075)
+
+    -- Clamp to keep left gauge inside the widget area
+    if cxLeft + radiusSmall + margin > w then
+        cxLeft = w - radiusSmall - margin
+    end
+    if cxLeft < radiusSmall + margin then
+        cxLeft = radiusSmall + margin
+    end
 
     --------------------------------------------------------
     -- 0) Signature en haut
@@ -848,6 +1039,100 @@ local function paint(widget)
     end
 
     --------------------------------------------------------
+    -- Expert (Extended/Maximum) : affichage des capteurs sous la liste de gauche
+    --------------------------------------------------------
+    if widget.telemetryMode == 1 then
+        local function fmtTimeMMSS(v)
+            if type(v) ~= "number" then return "--" end
+            local total = math.floor(math.abs(v))
+            local m = math.floor(total / 60)
+            local s = total % 60
+            local t = string.format("%d:%02d", m, s)
+            if v < 0 then t = "-" .. t end
+            return t
+        end
+        local function drawKV(label, value, unit)
+            if not label then return end
+            -- stop if there is no more vertical room
+            if (yText + lineH) > (h - margin - 2) then return end
+
+            -- Label
+            lcd.color(textColor)
+            lcd.font(FONT_STD)
+            lcd.drawText(statusX, yText, label, 0)
+            local lw, _ = lcd.getTextSize(label)
+
+            -- Value
+            local v = value or "--"
+            lcd.color(gaugeColor)
+            lcd.font(FONT_STD)
+            lcd.drawText(statusX + lw + 5, yText, v, 0)
+            local vw, vh = lcd.getTextSize(v)
+
+            -- Unit (smaller font)
+            if unit and v ~= "--" and v ~= "" then
+                lcd.font(FONT_XXS)
+                local _, uh = lcd.getTextSize(unit)
+                local uy = yText + math.max(0, math.floor((vh - uh) / 2))
+                lcd.drawText(statusX + lw + 5 + vw + 2, uy, unit, 0)
+            end
+
+            lcd.font(FONT_STD)
+            yText = yText + lineH + lineGap
+        end
+        if widget.ambTempSource then
+            if type(widget.ambTempValue) == "number" then
+                drawKV("Amb.T :", string.format("%.1f", widget.ambTempValue), "°C")
+            else
+                drawKV("Amb.T :", "--")
+            end
+        end
+        if widget.pressSource then
+            if type(widget.pressValue) == "number" then
+                drawKV("Pres :", string.format("%d", math.floor(widget.pressValue + 0.5)), "mbar")
+            else
+                drawKV("Pres :", "--")
+            end
+        end
+        if widget.altSource then
+            if type(widget.altValue) == "number" then
+                drawKV("Alt :", string.format("%d", math.floor(widget.altValue + 0.5)), "m")
+            else
+                drawKV("Alt :", "--")
+            end
+        end
+        if widget.pumpAmpSource then
+            if type(widget.pumpAmpValue) == "number" then
+                drawKV("P.Amp :", string.format("%.1f", widget.pumpAmpValue), "A")
+            else
+                drawKV("P.Amp :", "--")
+            end
+        end
+        if widget.battUsedSource then
+            if type(widget.battUsedValue) == "number" then
+                drawKV("Batt.Us :", string.format("%d", math.floor(widget.battUsedValue + 0.5)), "mAh")
+            else
+                drawKV("Batt.Us :", "--")
+            end
+        end
+        if widget.engineTimeSource then
+            drawKV("Eng.Tm :", fmtTimeMMSS(widget.engineTimeValue))
+        end
+        if widget.serialSource then
+            local v
+            if type(widget.serialValue) == "number" then
+                v = string.format("%d", math.floor(widget.serialValue + 0.5))
+            elseif type(widget.serialValue) == "string" then
+                v = widget.serialValue
+            else
+                v = "--"
+            end
+            drawKV("SN :", v)
+        end
+    end
+
+
+    --------------------------------------------------------
 
     --------------------------------------------------------
     -- 4–7) Jauges principales via dashboardObjects (premier essai)
@@ -886,6 +1171,78 @@ local function paint(widget)
     }
 
     renderDashboard(widget, ctx)
+
+    --------------------------------------------------------
+    -- Fuel Flow : affichage sous la jauge PUMP (Expert)
+    --  - Centré sous la jauge
+    --  - Maintenu au-dessus de la barre carburant pour éviter chevauchement
+    --------------------------------------------------------
+    if widget.telemetryMode == 1 and widget.fuelFlowSource then
+        -- Texte
+        local flowLabel = "Fuel.Fw"
+        local flowValue = "--"
+        local flowUnit  = nil
+
+        if type(widget.fuelFlowValue) == "number" then
+            flowValue = string.format("%d", math.floor(widget.fuelFlowValue + 0.5))
+            flowUnit  = "ml/mn"
+        end
+
+        -- Géométrie de la barre carburant (mêmes règles que renderDashboard)
+        local baseH, baseW = 272, 480
+        local scaleH       = h / baseH
+        local scaleW       = w / baseW
+        if scaleH < 0.3 then scaleH = 0.3 end
+        if scaleW < 0.3 then scaleW = 0.3 end
+        local scale        = math.min(scaleH, scaleW)
+
+        local fuelBarHeight = math.max(6, math.floor(18 * scale))
+        local fuelBarY      = h - fuelBarHeight - margin
+
+        -- Mesures texte (FONT_STD pour garder la hauteur minimale)
+        lcd.font(FONT_STD)
+
+        local labelPart = flowLabel .. " : "
+        local valuePart = flowValue
+        local unitPart  = flowUnit and (" " .. flowUnit) or ""
+
+        local labelW, flowH = lcd.getTextSize(labelPart)
+        local valueW, _     = lcd.getTextSize(valuePart)
+
+        local unitW = 0
+        if flowUnit then
+            unitW, _ = lcd.getTextSize(unitPart)
+        end
+
+        local totalW = labelW + valueW + unitW
+
+        -- Position : sous la jauge Pump, mais clampée au-dessus de la zone Fuel
+        local x = math.floor(cxLeft - totalW / 2)
+
+        local yDesired = math.floor((cyLeft + radiusSmall) + 4)
+
+        -- On évite aussi la ligne "CARBURANT" (dessinée juste au-dessus de la barre)
+        local _, fuelLabelH = lcd.getTextSize("CARBURANT")
+        local yLimit = fuelBarY - fuelLabelH - 2 - flowH - 2
+        if yLimit < margin then yLimit = margin end
+
+        local y = yDesired
+        if y > yLimit then y = yLimit end
+        y = math.floor(y)
+
+        -- Affichage (label en blanc, valeur en vert, unité en blanc)
+        lcd.color(textColor)
+        lcd.drawText(x, y, labelPart, 0)
+
+        lcd.color(gaugeColor)
+        lcd.drawText(x + labelW, y, valuePart, 0)
+
+        if flowUnit then
+            lcd.color(textColor)
+            lcd.drawText(x + labelW + valueW, y, unitPart, 0)
+        end
+    end
+
 end
 
 
@@ -895,35 +1252,122 @@ end
 
 local function buildConfig(widget)
     local line
+    local ecuChoices = {
+        { "Xicoy",    1 },
+        { "JetCat",   2 },
+        { "KingTech", 3 },
+        { "Swiwin",   4 },
+    }
 
-    -- Mode de configuration : 0=Basic (Xicoy Basic), 1=Advanced/Expert (ProHub Extended)
-    line = form.addLine("Setup Mode (0=Basic 1=Expert)")
-    local modeField = form.addNumberField(line, nil, 0, 1,
-        function() return widget.telemetryMode or 0 end,
-        function(v)
-            local newMode = v or 0
-            if newMode < 0 then newMode = 0 elseif newMode > 1 then newMode = 1 end
-            if widget.telemetryMode ~= newMode then
-                widget.telemetryMode = newMode
-                if form.clear then
-                    form.clear()
-                    buildConfig(widget)
+    -- Setup Mode
+    local modeChoices = {
+        { "Basic",  1 },
+        { "Expert", 2 },
+    }
+
+    local themeChoices = {
+        { "Standard",      1 },
+        { "High contrast", 2 },
+        { "Amber",         3 },
+    }
+
+    line = form.addLine("Setup Mode")
+    if form.addChoiceField then
+        form.addChoiceField(line, nil, modeChoices,
+            function()
+                local m = widget.telemetryMode or 0
+                if m < 0 then m = 0 elseif m > 1 then m = 1 end
+                return m + 1
+            end,
+            
+            function(v)
+                local sel = v or 1
+                if sel < 1 then sel = 1 elseif sel > #modeChoices then sel = #modeChoices end
+
+                local newMode = sel - 1
+                if newMode < 0 then newMode = 0 elseif newMode > 1 then newMode = 1 end
+
+                if (widget.telemetryMode or 0) ~= newMode then
+                    widget.telemetryMode = newMode
+                    -- Rebuild form so Expert-only fields appear/disappear immediately
+                    if form.clear then
+                        form.clear()
+                        buildConfig(widget)
+                    end
                 end
             end
-        end)
-    if modeField and modeField.step then
-        modeField:step(1)
+
+        )
+    else
+        -- Fallback (older ETHOS): numeric selector
+        form.addNumberField(line, nil, 0, 1,
+            function() return widget.telemetryMode or 0 end,
+            
+            function(v)
+                local newMode = v or 0
+                if newMode < 0 then newMode = 0 elseif newMode > 1 then newMode = 1 end
+
+                if (widget.telemetryMode or 0) ~= newMode then
+                    widget.telemetryMode = newMode
+                    if form.clear then
+                        form.clear()
+                        buildConfig(widget)
+                    end
+                end
+            end
+
+        )
     end
 
-    -- Temp 2 sensor (Status / code ECU)
+    line = form.addLine("ECU Type")
+
+    if form.addChoiceField then
+        form.addChoiceField(line, nil, ecuChoices,
+            function()
+                -- We keep widget.ecuType stored as 0..N-1 internally, but the menu uses 1..N values
+                local t = widget.ecuType or 0
+                if t < 0 then
+                    t = 0
+                elseif t > (#ecuChoices - 1) then
+                    t = (#ecuChoices - 1)
+                end
+                return t + 1
+            end,
+            function(v)
+                local sel = v or 1
+                if sel < 1 then
+                    sel = 1
+                elseif sel > #ecuChoices then
+                    sel = #ecuChoices
+                end
+                widget.ecuType = sel - 1
+            end
+        )
+    else
+        -- Fallback (older ETHOS): numeric selector (still stores 0..3 internally)
+        local ecuField = form.addNumberField(line, nil, 0, (#ecuChoices - 1),
+            function() return widget.ecuType or 0 end,
+            function(v)
+                local t = v or 0
+                if t < 0 then t = 0 elseif t > (#ecuChoices - 1) then t = (#ecuChoices - 1) end
+                widget.ecuType = t
+            end
+        )
+        if ecuField and ecuField.step then
+            ecuField:step(1)
+        end
+    end
+
+    
+-- Temp 2 sensor (Status / code ECU)
     line = form.addLine("STATUS ECU Sensor")
     form.addSourceField(line, nil,
         function() return widget.temp2Source end,
         function(v) widget.temp2Source = v end)
 
+    
 
-
-    -- RPM Sensor
+-- RPM Sensor
     line = form.addLine("RPM Sensor")
     form.addSourceField(line, nil,
         function() return widget.rpmSource end,
@@ -1002,9 +1446,13 @@ local function buildConfig(widget)
         function() return widget.fuelAlertPercent or 0 end,
         function(v) widget.fuelAlertPercent = v end)
     if fuelAlertField and fuelAlertField.suffix then
-        fuelAlertField:suffix("%%")
+        fuelAlertField:suffix("%")
     end
-    if fuelAlertField and fuelAlertField.step then
+    
+    if fuelAlertField and fuelAlertField.default then
+        fuelAlertField:default(25)
+    end
+if fuelAlertField and fuelAlertField.step then
         fuelAlertField:step(1)
     end
 
@@ -1014,9 +1462,13 @@ local function buildConfig(widget)
         function() return widget.fuelCriticalAlertPercent or 0 end,
         function(v) widget.fuelCriticalAlertPercent = v end)
     if fuelCriticalField and fuelCriticalField.suffix then
-        fuelCriticalField:suffix("%%")
+        fuelCriticalField:suffix("%")
     end
-    if fuelCriticalField and fuelCriticalField.step then
+    
+    if fuelCriticalField and fuelCriticalField.default then
+        fuelCriticalField:default(5)
+    end
+if fuelCriticalField and fuelCriticalField.step then
         fuelCriticalField:step(1)
     end
 
@@ -1162,12 +1614,58 @@ local function buildConfig(widget)
 
 
     -- Thème d'affichage
-    line = form.addLine("Theme (0=Std 1=High 2=Amber)")
-    local themeField = form.addNumberField(line, nil, 0, 2,
-        function() return widget.theme or 0 end,
-        function(v) widget.theme = v end)
-    if themeField and themeField.step then
-        themeField:step(1)
+    if form.addChoiceField then
+        line = form.addLine("Theme")
+        form.addChoiceField(line, nil, themeChoices,
+            function()
+                local t = widget.theme or 0
+                if t < 0 then t = 0 elseif t > (#themeChoices - 1) then t = (#themeChoices - 1) end
+                return t + 1
+            end,
+            function(v)
+                local sel = v or 1
+                if sel < 1 then
+                    sel = 1
+                elseif sel > #themeChoices then
+                    sel = #themeChoices
+                end
+
+                local newTheme = sel - 1
+                if newTheme < 0 then newTheme = 0 elseif newTheme > (#themeChoices - 1) then newTheme = (#themeChoices - 1) end
+
+                if (widget.theme or 0) ~= newTheme then
+                    widget.theme = newTheme
+                    -- Force immediate redraw so the user sees the theme right away
+                    if (not lcd.isVisible) or lcd.isVisible() then
+                        lcd.invalidate()
+                    end
+                    -- Rebuild form (same behavior as Setup Mode) for consistency
+                    if form.clear then
+                        form.clear()
+                        buildConfig(widget)
+                    end
+                end
+            end
+        )
+    else
+        -- Fallback (older ETHOS): numeric selector
+        line = form.addLine("Theme (0=Std 1=High 2=Amber)")
+        local themeField = form.addNumberField(line, nil, 0, 2,
+            function() return widget.theme or 0 end,
+            function(v)
+                local newTheme = v or 0
+                if newTheme < 0 then newTheme = 0 elseif newTheme > 2 then newTheme = 2 end
+                if (widget.theme or 0) ~= newTheme then
+                    widget.theme = newTheme
+                    if (not lcd.isVisible) or lcd.isVisible() then
+                        lcd.invalidate()
+                    end
+                end
+            end
+        )
+        if themeField and themeField.step then
+            themeField:step(1)
+        end
     end
 end
 
@@ -1280,7 +1778,12 @@ local function read(widget)
 
     local alert = storage.read("fuelAlertPercent")
     if alert ~= nil then
-        widget.fuelAlertPercent = alert
+        -- Migration v1.1: ancien défaut 30% -> nouveau défaut 25%
+        if alert == 30 then
+            widget.fuelAlertPercent = 25
+        else
+            widget.fuelAlertPercent = alert
+        end
     end
 
     local critical = storage.read("fuelCriticalAlertPercent")
@@ -1319,6 +1822,9 @@ local function read(widget)
 
     local mode = storage.read("telemetryMode")
     if mode ~= nil then widget.telemetryMode = mode end
+
+    local ecuType = storage.read("ecuType")
+    if ecuType ~= nil then widget.ecuType = ecuType end
 end
 
 local function write(widget)
@@ -1361,6 +1867,7 @@ local function write(widget)
     storage.write("fuelMax",          widget.fuelMax)
     storage.write("theme",            widget.theme)
     storage.write("telemetryMode",    widget.telemetryMode or 0)
+    storage.write("ecuType",          widget.ecuType or 0)
 end
 
 -------------------------------------------------------------
@@ -1370,7 +1877,7 @@ end
 local function init()
     system.registerWidget({
         key        = "GIB2A",
-        name       = "GIB2A - Xicoy ProHub graphique (ETHOS 1.7)",
+			name       = "GIBA - Xicoy ProHUb - V1.1  Corsica fly dream",
         create     = create,
         update     = update,
         wakeup     = wakeup,
