@@ -1,5 +1,12 @@
 # GIBA — Xicoy ProHub Turbine Telemetry Widget (ETHOS) — V1.1
 
+
+## Download
+
+[📦 Download ZIP](https://github.com/GIB2A/ETHOS-LUA-XICOY/releases/latest/download/GIB2A-Xicoy-ProHub-Widget-V1.1.zip)
+
+> Latest packaged version ready to copy to the SD card.
+
 Repository: `https://github.com/GIB2A/ETHOS-LUA-XICOY`
 
 **Widget name shown on the radio (ETHOS):** `GIBA - Xicoy ProHUb - V1.1  Corsica fly dream`  
