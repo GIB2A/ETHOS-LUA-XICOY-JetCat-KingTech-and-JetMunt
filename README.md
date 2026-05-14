@@ -2,7 +2,7 @@
 
 **GIB2A** is an ETHOS Lua widget dedicated to RC turbine telemetry display on FrSky ETHOS radios.
 
-The first public release is focused on **Xicoy ProHub / FrSky S.Port telemetry**, with a pilot-oriented dashboard for turbine operation and a clean configuration menu directly on the radio.
+This release is focused on **Xicoy ProHub telemetry in FrSky S.Port mode**, with a pilot-oriented dashboard for turbine operation and a clean configuration menu directly on the radio.
 
 The project is designed as a stable foundation for future multi-brand turbine support while remaining **100% ETHOS-friendly**: the script reads telemetry sources discovered by ETHOS and does not perform direct low-level S.Port decoding.
 
@@ -20,11 +20,13 @@ Download the latest packaged version from the GitHub releases page:
 
 [📦 GitHub Releases](https://github.com/GIB2A/ETHOS-LUA-XICOY-JetCat-KingTech-and-JetMunt/releases)
 
-Recommended release package format:
+Use the ZIP file available in the release **Assets** section:
 
 ```text
 GIB2A-Xicoy-ProHub-Widget-V1.1-ETHOS-Suite.zip
 ```
+
+Do **not** use the automatic GitHub **Source code** ZIP for installation.
 
 The ETHOS Suite compatible ZIP contains an `ethos_lua_manifest.json` file at the root of the archive.
 
@@ -40,13 +42,14 @@ The ETHOS Suite compatible ZIP contains an `ethos_lua_manifest.json` file at the
 | Main script | `main.lua` |
 | Target platform | FrSky ETHOS |
 | Main telemetry target | Xicoy ProHub in FrSky mode |
+| Installation package | `GIB2A-Xicoy-ProHub-Widget-V1.1-ETHOS-Suite.zip` |
 
 ---
 
 ## Main features
 
-- Turbine telemetry dashboard for ETHOS radios
-- Pilot-focused display of essential values:
+- Turbine telemetry dashboard for FrSky ETHOS radios
+- Pilot-focused display of essential turbine values:
   - RPM
   - EGT / Temp1
   - Pump value
@@ -106,46 +109,30 @@ Important: on some FrSky receivers, the telemetry pin must be configured explici
 
 ## Installation with ETHOS Suite
 
-This is the recommended method for packaged releases.
+This is the recommended and supported installation method.
 
-1. Download the release ZIP from the GitHub releases page.
+1. Download the release ZIP from the GitHub release **Assets** section:
+
+```text
+GIB2A-Xicoy-ProHub-Widget-V1.1-ETHOS-Suite.zip
+```
+
 2. Open **ETHOS Suite**.
 3. Go to **Lua Library**.
 4. Choose **Install from local .zip**.
-5. Select the GIB2A release ZIP.
-6. ETHOS Suite installs the files according to `ethos_lua_manifest.json`.
+5. Select:
 
-The widget should be installed under:
+```text
+GIB2A-Xicoy-ProHub-Widget-V1.1-ETHOS-Suite.zip
+```
+
+6. ETHOS Suite installs the widget according to the included `ethos_lua_manifest.json`.
+
+The widget is installed under:
 
 ```text
 RADIO:/scripts/GIB2A/
 ```
-
----
-
-## Manual installation
-
-If you install manually from the SD card, copy the script so the final path is:
-
-```text
-SCRIPTS/GIB2A/main.lua
-```
-
-Do not create an extra nested folder.
-
-Correct:
-
-```text
-SCRIPTS/GIB2A/main.lua
-```
-
-Wrong:
-
-```text
-SCRIPTS/GIB2A/GIB2A/main.lua
-```
-
-After copying the files, reboot the radio if the widget does not immediately appear in the widget list.
 
 ---
 
@@ -289,10 +276,10 @@ Then open the widget settings and assign the telemetry sources discovered by ETH
 
 Check:
 
-- The file is installed as `SCRIPTS/GIB2A/main.lua`.
-- There is no extra nested folder.
-- The radio has been rebooted after copying the script.
-- The script is not inside the wrong SD card directory.
+- The installed package is the release asset named `GIB2A-Xicoy-ProHub-Widget-V1.1-ETHOS-Suite.zip`.
+- The package was installed through **ETHOS Suite → Lua Library → Install from local .zip**.
+- ETHOS Suite installed the widget under `RADIO:/scripts/GIB2A/`.
+- The radio has been rebooted after installation if needed.
 
 ### No telemetry values are displayed
 
