@@ -16,17 +16,17 @@ The project is designed as a stable foundation for future multi-brand turbine su
 
 ## Download
 
-Download the latest packaged version from the GitHub releases page:
+Download the ETHOS Suite package directly here:
 
-[📦 GitHub Releases](https://github.com/GIB2A/ETHOS-LUA-XICOY-JetCat-KingTech-and-JetMunt/releases)
+[📦 Download GIB2A-Xicoy-ProHub-Widget-V1.1-ETHOS-Suite.zip](https://github.com/GIB2A/ETHOS-LUA-XICOY-JetCat-KingTech-and-JetMunt/releases/latest/download/GIB2A-Xicoy-ProHub-Widget-V1.1-ETHOS-Suite.zip)
 
-Use the ZIP file available in the release **Assets** section:
+Do **not** use the automatic GitHub **Source code** ZIP for installation.
+
+Use only the packaged ZIP:
 
 ```text
 GIB2A-Xicoy-ProHub-Widget-V1.1-ETHOS-Suite.zip
 ```
-
-Do **not** use the automatic GitHub **Source code** ZIP for installation.
 
 The ETHOS Suite compatible ZIP contains an `ethos_lua_manifest.json` file at the root of the archive.
 
@@ -111,7 +111,7 @@ Important: on some FrSky receivers, the telemetry pin must be configured explici
 
 This is the recommended and supported installation method.
 
-1. Download the release ZIP from the GitHub release **Assets** section:
+1. Download the ETHOS Suite package:
 
 ```text
 GIB2A-Xicoy-ProHub-Widget-V1.1-ETHOS-Suite.zip
