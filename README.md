@@ -1,7 +1,7 @@
 # GIB2A FrSky ETHOS Turbine Telemetry
 
 GIB2A V26.2.2 is a telemetry-only Lua widget for FrSky ETHOS radios. It displays
-turbine and ECU telemetry; it never starts, stops, restarts or controls a turbine.
+turbine and ECU telemetry it never starts, stops, restarts or controls a turbine.
 
 [Lire en français](README_FR.md)
 
