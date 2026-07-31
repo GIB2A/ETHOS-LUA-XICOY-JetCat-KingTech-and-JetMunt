@@ -7,6 +7,8 @@ turbine and ECU telemetry; it never starts, stops, restarts or controls a turbin
 
 ![GIB2A widget preview](assets/gib2a-widget-preview.jpg)
 
+[Download GIB2A V26.2.2 for ETHOS Suite](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/download/v26.2.2/GIB2A-Xicoy-ProHub-Widget-V26.2.2-ETHOS-Suite.zip)
+
 ## Features
 
 - Pilot-readable RPM, EGT, fuel, pump and ECU status dashboard
