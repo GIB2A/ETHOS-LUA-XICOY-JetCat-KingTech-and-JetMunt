@@ -9,6 +9,8 @@ turbine and ECU telemetry it never starts, stops, restarts or controls a turbine
 
 [Download GIB2A V26.2.2 for ETHOS Suite](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/download/v26.2.2/GIB2A-Xicoy-ProHub-Widget-V26.2.2-ETHOS-Suite.zip)
 
+> **Important:** Uninstall any previous version of GIB2A before installing V26.2.2.
+
 ## Features
 
 - Pilot-readable RPM, EGT, fuel, pump and ECU status dashboard
@@ -44,8 +46,7 @@ JetMunt compatibility is not claimed because it has not been demonstrated here.
 
 For manual installation, extract the SD package so the radio contains exactly
 `SCRIPTS/GIB2A/main.lua`, then reboot the radio and add the `GIB2A` widget.
-For ETHOS Suite, use the dedicated Suite archive whose manifest schema and
-root-level file layout are inherited from the official V1.1 package. See
+For ETHOS Suite, use the dedicated Suite archive. See
 [Installation](docs/INSTALLATION.md).
 
 ## Configuration and telemetry
