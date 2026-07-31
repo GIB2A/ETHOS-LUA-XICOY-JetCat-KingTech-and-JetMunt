@@ -1,0 +1,20 @@
+name: Validate
+on:
+  push:
+  pull_request:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install Lua
+        run: sudo apt-get update && sudo apt-get install -y lua5.4
+      - name: Lua syntax
+        run: luac -p src/GIB2A/main.lua
+      - name: Validate release
+        run: python tools/validate_release.py
+      - name: Whitespace
+        run: git diff --check

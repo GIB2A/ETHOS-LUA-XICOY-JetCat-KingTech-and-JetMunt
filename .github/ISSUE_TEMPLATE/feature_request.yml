@@ -1,0 +1,23 @@
+name: Feature request
+description: Suggest a telemetry-only improvement
+body:
+  - type: textarea
+    id: need
+    attributes: {label: Pilot need or problem}
+    validations: {required: true}
+  - type: textarea
+    id: proposal
+    attributes: {label: Proposed behavior}
+  - type: input
+    id: platform
+    attributes: {label: Radio and ETHOS version}
+  - type: input
+    id: ecu
+    attributes: {label: ECU brand/model and telemetry mode}
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety
+      options:
+        - label: This request is telemetry-only and does not control the aircraft.
+          required: true

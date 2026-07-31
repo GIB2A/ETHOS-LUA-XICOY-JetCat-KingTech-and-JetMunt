@@ -1,0 +1,50 @@
+name: Bug report
+description: Report a reproducible GIB2A problem
+body:
+  - type: input
+    id: radio
+    attributes: {label: Radio model}
+    validations: {required: true}
+  - type: input
+    id: ethos
+    attributes: {label: ETHOS version}
+    validations: {required: true}
+  - type: input
+    id: receiver
+    attributes: {label: Receiver model}
+  - type: input
+    id: ecu_brand
+    attributes: {label: ECU brand}
+  - type: input
+    id: ecu_model
+    attributes: {label: ECU model}
+  - type: input
+    id: telemetry_mode
+    attributes: {label: Telemetry mode}
+  - type: input
+    id: version_hash
+    attributes: {label: GIB2A version and script SHA-256}
+    validations: {required: true}
+  - type: textarea
+    id: sensors
+    attributes: {label: Discovered sensors and selected sources}
+  - type: textarea
+    id: reproduce
+    attributes: {label: Reproduction steps}
+    validations: {required: true}
+  - type: textarea
+    id: expected
+    attributes: {label: Expected result}
+  - type: textarea
+    id: actual
+    attributes: {label: Actual result}
+  - type: textarea
+    id: attachments
+    attributes: {label: Screenshots and audio files}
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks performed
+      options:
+        - label: I reran ETHOS telemetry discovery.
+        - label: I restarted the radio.

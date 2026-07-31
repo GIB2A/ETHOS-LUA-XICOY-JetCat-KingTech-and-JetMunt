@@ -1,0 +1,9 @@
+archive/
+release/
+.tmp/
+temp/
+__pycache__/
+*.pyc
+*.tmp
+*.bak
+*.orig
