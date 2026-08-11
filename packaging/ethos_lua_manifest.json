@@ -2,10 +2,10 @@
   "manifestVersion": 1,
   "name": "GIB2A Xicoy ProHub Telemetry Widget",
   "key": "com.gib2a.ethos.xicoyprohub",
-  "version": "26.3.0",
+  "version": "26.3.1",
   "releaseNotes": {
     "format": "markdown",
-    "content": "## V26.3.0\n\n- Redesigned the pilot-focused dashboard.\n- Centralized ECU status and flight timer.\n- Added the external GIB2A logo and adaptive side-panel typography.\n- Redesigned RPM, EGT, pump and fuel rendering.\n- Preserved the validated telemetry-only behavior."
+    "content": "## V26.3.1\n\n- Corrected ETHOS system-source handling for receiver voltage.\n- Corrected RSSI 2.4 GHz and 900 MHz source handling.\n- Displayed RSSI values with an explicit % unit.\n- Preserved turbine telemetry AppID mappings and auto-bind logic."
   },
   "folder": "GIB2A",
   "files": [

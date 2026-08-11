@@ -1,5 +1,16 @@
 # Changelog
 
+## [26.3.1] - 2026-08-11
+
+### Fixed
+- corrected ETHOS system-source handling for receiver voltage
+- corrected RSSI 2.4 GHz and 900 MHz source handling
+- displayed RSSI values with an explicit `%` unit
+
+### Unchanged
+- turbine telemetry AppID mappings
+- Xicoy and EnJet auto-bind logic
+
 ## [26.3.0] - 2026-08-11
 
 ### Added

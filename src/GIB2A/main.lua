@@ -1,4 +1,4 @@
--- GIB2A TURBINE Widget V26.3.0
+-- GIB2A TURBINE Widget V26.3.1
 -- Widget de télémétrie turbine multi-ECU pour ETHOS
 -- Compatibilité Xicoy ProHub, Enjet, Linton, KingTech, Swiwin et JetCat
 -- Modes Xicoy Basic, Extended et Maximum avec auto-bind des capteurs
@@ -39,7 +39,7 @@ local TELEMETRY_MODE_BASIC = 0
 local TELEMETRY_MODE_EXTENDED = 1
 local TELEMETRY_MODE_MAXIMUM = 2
 local SETUP_MODE_SCHEMA = 2
-local WIDGET_VERSION = "26.3.0"
+local WIDGET_VERSION = "26.3.1"
 local FUEL_YELLOW_THRESHOLD = 50
 local FUEL_RED_THRESHOLD = 25
 local GIB2A_LOGO_PATH = "gib2a_logo_ethos_180.png"
@@ -494,6 +494,48 @@ end
 
 local function updateField(widget, srcField, valField)
     local newValue = readSourceValue(widget, srcField)
+    if widget[valField] ~= newValue then
+        widget[valField] = newValue
+        return true
+    end
+    return false
+end
+
+local function readSystemSourceValue(src)
+    if not src then
+        return nil
+    end
+
+    local realSrc = src
+    if type(src.name) == "function" and system.getSource then
+        local okName, name = pcall(src.name, src)
+        if okName and type(name) == "string" and name ~= "" then
+            local okSource, resolvedSource = pcall(system.getSource, name)
+            if okSource and resolvedSource and type(resolvedSource.value) == "function" then
+                realSrc = resolvedSource
+            end
+        end
+    end
+
+    if type(realSrc.value) == "function" then
+        local okValue, value = pcall(realSrc.value, realSrc)
+        if okValue then
+            return value
+        end
+    end
+
+    if realSrc ~= src and type(src.value) == "function" then
+        local okFallback, fallbackValue = pcall(src.value, src)
+        if okFallback then
+            return fallbackValue
+        end
+    end
+
+    return nil
+end
+
+local function updateSystemField(widget, srcField, valField)
+    local newValue = readSystemSourceValue(widget[srcField])
     if widget[valField] ~= newValue then
         widget[valField] = newValue
         return true
@@ -2188,10 +2230,10 @@ local function paint(widget)
             rightRows[#rightRows + 1] = { "RX V", dashboardValue(widget.rxbattValue, 1), "V" }
         end
         if widget.rssi1Source ~= nil then
-            rightRows[#rightRows + 1] = { "RSSI 2.4", dashboardValue(widget.rssi1Value), widget.rssi1Unit or "" }
+            rightRows[#rightRows + 1] = { "RSSI 2.4", dashboardValue(widget.rssi1Value), "%" }
         end
         if widget.rssi2Source ~= nil then
-            rightRows[#rightRows + 1] = { "RSSI 900", dashboardValue(widget.rssi2Value), widget.rssi2Unit or "" }
+            rightRows[#rightRows + 1] = { "RSSI 900", dashboardValue(widget.rssi2Value), "%" }
         end
         if widget.diy1Source ~= nil then
             rightRows[#rightRows + 1] = { "DIY1", dashboardValue(widget.diy1Value, 1), widget.diy1Unit or "" }
@@ -2736,18 +2778,18 @@ if fuelCriticalField and fuelCriticalField.step then
         end)
 
     -- Capteur général (RxBatt)
-    line = form.addLine("RxBatt Sensor")
+    line = form.addLine("RxBatt Source")
     form.addSourceField(line, nil,
         function() return widget.rxbattSource end,
         function(v) widget.rxbattSource = v end)
 
     -- RSSI Sensor 1 / 2
-    line = form.addLine("RSSI Sensor 1 (2.4G)")
+    line = form.addLine("RSSI Source 1 (2.4G)")
     form.addSourceField(line, nil,
      function() return widget.rssi1Source end,
         function(v) widget.rssi1Source = v end)
 
-    line = form.addLine("RSSI Sensor 2 (900M)")
+    line = form.addLine("RSSI Source 2 (900M)")
     form.addSourceField(line, nil,
         function() return widget.rssi2Source end,
         function(v) widget.rssi2Source = v end)
@@ -2878,10 +2920,10 @@ local function wakeup(widget)
     dirty = updateField(widget, "fuelConsumptionSource", "fuelConsumptionValue") or dirty
 
     -- Capteurs généraux
-    dirty = updateField(widget, "rxbattSource",   "rxbattValue") or dirty
+    dirty = updateSystemField(widget, "rxbattSource", "rxbattValue") or dirty
 
-    dirty = updateField(widget, "rssi1Source",    "rssi1Value") or dirty
-    dirty = updateField(widget, "rssi2Source",    "rssi2Value") or dirty
+    dirty = updateSystemField(widget, "rssi1Source", "rssi1Value") or dirty
+    dirty = updateSystemField(widget, "rssi2Source", "rssi2Value") or dirty
     if widget._rssi1UnitSource ~= widget.rssi1Source then
         widget._rssi1UnitSource = widget.rssi1Source
         widget.rssi1Unit = sourceUnit(widget.rssi1Source)

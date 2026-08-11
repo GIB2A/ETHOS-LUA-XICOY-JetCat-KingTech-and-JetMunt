@@ -1,6 +1,6 @@
 # GIB2A FrSky ETHOS Turbine Telemetry
 
-GIB2A V26.3.0 est un widget Lua de télémétrie uniquement pour les radios FrSky
+GIB2A V26.3.1 est un widget Lua de télémétrie uniquement pour les radios FrSky
 ETHOS. Il affiche la télémétrie turbine et ECU ; il ne démarre, n’arrête, ne
 redémarre et ne commande jamais une turbine.
 
@@ -73,12 +73,12 @@ procédures fabricants restent prioritaires. Voir [Avertissement](docs/DISCLAIME
 
 - [Dépôt du projet](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry)
 - [Versions publiées](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases)
-- [Version V26.3.0](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/tag/v26.3.0)
+- [Version V26.3.1](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/tag/v26.3.1)
 - [Compatibilité](docs/COMPATIBILITY.md)
 - [Configuration](docs/CONFIGURATION.md)
 - [Installation](docs/INSTALLATION.md)
 - [Dépannage](docs/TROUBLESHOOTING.md)
-- [Notes V26.3.0](docs/release-notes/V26.3.0.md)
+- [Notes V26.3.1](docs/release-notes/V26.3.1.md)
 - [Contribuer](docs/CONTRIBUTING.md)
 
 Signaler un problème via les [issues GitHub](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/issues).
