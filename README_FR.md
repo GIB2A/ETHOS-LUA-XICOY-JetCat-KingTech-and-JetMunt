@@ -1,6 +1,6 @@
 # GIB2A FrSky ETHOS Turbine Telemetry
 
-GIB2A V26.2.2 est un widget Lua de télémétrie uniquement pour les radios FrSky
+GIB2A V26.3.0 est un widget Lua de télémétrie uniquement pour les radios FrSky
 ETHOS. Il affiche la télémétrie turbine et ECU ; il ne démarre, n’arrête, ne
 redémarre et ne commande jamais une turbine.
 
@@ -11,6 +11,10 @@ redémarre et ne commande jamais une turbine.
 ## Fonctions
 
 - Tableau de bord lisible en vol : RPM, EGT, carburant, pompe et statut ECU
+- Nouveau tableau de bord avec statut ECU et chrono centralisés
+- Logo GIB2A PNG externe
+- Panneaux télémétriques gauche et droit à typographie adaptative
+- Nouveau rendu RPM, EGT, pompe et carburant
 - Modes Xicoy Basic, Extended et Maximum avec auto-bind AppID correspondant
 - Auto-bind Enjet DTA
 - Affectation manuelle des sources pour chaque ECU pris en charge
@@ -41,7 +45,9 @@ La compatibilité JetMunt n’est pas revendiquée faute de démonstration.
 ## Installation
 
 Pour l’installation manuelle, extraire le paquet SD afin d’obtenir exactement
-`SCRIPTS/GIB2A/main.lua`, redémarrer la radio puis ajouter le widget `GIB2A`.
+`SCRIPTS/GIB2A/main.lua` et
+`SCRIPTS/GIB2A/gib2a_logo_ethos_180.png`, redémarrer la radio puis ajouter le
+widget `GIB2A`.
 Pour ETHOS Suite, utiliser l’archive Suite dédiée dont le schéma de manifeste et
 la structure à la racine proviennent du paquet officiel V1.1. Voir
 [Installation](docs/INSTALLATION.md).
@@ -67,12 +73,12 @@ procédures fabricants restent prioritaires. Voir [Avertissement](docs/DISCLAIME
 
 - [Dépôt du projet](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry)
 - [Versions publiées](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases)
-- [Version V26.2.2](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/tag/v26.2.2)
+- [Version V26.3.0](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/tag/v26.3.0)
 - [Compatibilité](docs/COMPATIBILITY.md)
 - [Configuration](docs/CONFIGURATION.md)
 - [Installation](docs/INSTALLATION.md)
 - [Dépannage](docs/TROUBLESHOOTING.md)
-- [Notes V26.2.2](docs/release-notes/V26.2.2.md)
+- [Notes V26.3.0](docs/release-notes/V26.3.0.md)
 - [Contribuer](docs/CONTRIBUTING.md)
 
 Signaler un problème via les [issues GitHub](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/issues).

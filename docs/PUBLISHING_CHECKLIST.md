@@ -8,10 +8,9 @@
 - [ ] Test ETHOS Suite only if a validated package exists.
 - [ ] Test on a radio.
 - [ ] Create the commit.
-- [ ] Publish branch `release/v26.2.2-prep`.
-- [ ] Open the Pull Request to `main`.
-- [ ] Verify GitHub Actions and merge after approval.
-- [ ] Create tag `v26.2.2`.
+- [ ] Push branch `main` after explicit authorization.
+- [ ] Verify GitHub Actions after the push.
+- [ ] Create tag `v26.3.0`.
 - [ ] Push the tag.
 - [ ] Create the GitHub Release.
 - [ ] Attach ZIP files.
@@ -23,6 +22,3 @@ Suggested commands are documented in [Releasing](RELEASING.md); they require
 explicit authorization.
 
 Repository: https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry
-
-Pull Request:
-https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/compare/main...release/v26.2.2-prep

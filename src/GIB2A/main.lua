@@ -1,4 +1,4 @@
--- GIB2A Xicoy ProHub ETHOS Widget V26.2.2
+-- GIB2A TURBINE Widget V26.3.0
 -- Widget de télémétrie turbine multi-ECU pour ETHOS
 -- Compatibilité Xicoy ProHub, Enjet, Linton, KingTech, Swiwin et JetCat
 -- Modes Xicoy Basic, Extended et Maximum avec auto-bind des capteurs
@@ -39,9 +39,28 @@ local TELEMETRY_MODE_BASIC = 0
 local TELEMETRY_MODE_EXTENDED = 1
 local TELEMETRY_MODE_MAXIMUM = 2
 local SETUP_MODE_SCHEMA = 2
-local WIDGET_VERSION = "26.2.2"
+local WIDGET_VERSION = "26.3.0"
 local FUEL_YELLOW_THRESHOLD = 50
 local FUEL_RED_THRESHOLD = 25
+local GIB2A_LOGO_PATH = "gib2a_logo_ethos_180.png"
+local GIB2A_LOGO_WIDTH = 130
+local GIB2A_LOGO_HEIGHT = 57
+local GIB2A_LOGO_COMPACT_WIDTH = 90
+local GIB2A_LOGO_COMPACT_HEIGHT = 40
+local gib2aLogo = nil
+
+local function loadGib2aLogo()
+    if gib2aLogo ~= nil or not lcd or not lcd.loadBitmap then
+        return
+    end
+
+    local ok, bitmap = pcall(function()
+        return lcd.loadBitmap(GIB2A_LOGO_PATH)
+    end)
+    if ok and bitmap then
+        gib2aLogo = bitmap
+    end
+end
 
 -- Xicoy pump telemetry uses a voltage-like value.
 -- 12.6 telemetry units = 1260 pump RPM = 100%.
@@ -87,9 +106,9 @@ local function create(zone, options)
         _lastEcuStatus           = nil,                       -- derniere transition statut ECU
 
         -- DIY Xicoy / capteurs libres
-        diy1Source     = nil, diy1Value     = nil,   -- DIY1 (optionnel)
-        diy2Source     = nil, diy2Value     = nil,   -- DIY2
-        diy3Source     = nil, diy3Value     = nil,   -- DIY3
+        diy1Source     = nil, diy1Value     = nil, diy1Unit = "", _diy1UnitSource = nil,
+        diy2Source     = nil, diy2Value     = nil, diy2Unit = "", _diy2UnitSource = nil,
+        diy3Source     = nil, diy3Value     = nil, diy3Unit = "", _diy3UnitSource = nil,
 
         -- Mode Xicoy Extended / Maximum (ProHub)
         ambTempSource      = nil, ambTempValue      = nil,   -- Ambient Temp (°C)
@@ -109,8 +128,8 @@ local function create(zone, options)
         rxbattSource   = nil, rxbattValue   = nil,   -- RxBatt Sensor
 
         -- RSSI
-        rssi1Source    = nil, rssi1Value    = nil,   -- RSSI Sensor 1 (2.4G)
-        rssi2Source    = nil, rssi2Value    = nil,   -- RSSI Sensor 2 (900M)
+        rssi1Source    = nil, rssi1Value    = nil, rssi1Unit = "", -- RSSI Sensor 1 (2.4G)
+        rssi2Source    = nil, rssi2Value    = nil, rssi2Unit = "", -- RSSI Sensor 2 (900M)
 
         -- Échelles max pour les jauges (valeurs réelles)
         rpmMax         = 160000,                     -- RPM max turbine (100%%)
@@ -1291,7 +1310,7 @@ local function renderDashboard(widget, ctx)
     end
 end
 
-local function paint(widget)
+local function paintLegacy(widget)
     local w, h = lcd.getWindowSize()
 
     -- Palette de couleurs selon le thème
@@ -1519,18 +1538,6 @@ local function paint(widget)
     if cxLeft < radiusSmall + margin then
         cxLeft = radiusSmall + margin
     end
-
-    --------------------------------------------------------
-    -- 0) Signature en haut
-    --------------------------------------------------------
-    -- Signature en vert (couleur GIB2A)
-    lcd.color(gaugeColor)
-    lcd.font(FONT_STD)
-    local sig = "Gib2a"
-    local twSig = lcd.getTextSize(sig)
-    local sigX = w - margin - twSig
-    local sigY = 2
-    lcd.drawText(sigX, sigY, sig, 0)
 
     --------------------------------------------------------
     -- 1) CHRONO (haut gauche)
@@ -1891,6 +1898,355 @@ end
 -------------------------------------------------------------
 -- Configuration (sélection des sources ETHOS + échelles)
 -------------------------------------------------------------
+
+-- Dashboard BETA : dessin uniquement à partir des valeurs mises en cache par wakeup().
+local function dashboardValue(value, decimals)
+    if type(value) == "string" and value ~= "" then return value end
+    if type(value) ~= "number" or value ~= value then return "--" end
+    if decimals == 1 then return string.format("%.1f", value) end
+    return string.format("%d", math.floor(value + 0.5))
+end
+
+local function drawCentered(x, y, text, font, color)
+    lcd.font(font)
+    lcd.color(color)
+    local tw = lcd.getTextSize(text)
+    lcd.drawText(math.floor(x - tw / 2), math.floor(y), text, 0)
+end
+
+local function getTelemetryPanelLayout(rowCount, availableHeight, compact)
+    if rowCount <= 0 then
+        return compact and FONT_XXS or FONT_XS, 1
+    end
+
+    local maxRowH = math.max(1, math.floor(availableHeight / rowCount))
+    local font, preferredRowH
+    if compact then
+        if rowCount <= 3 and maxRowH >= 16 then
+            font, preferredRowH = FONT_XS, 18
+        else
+            font, preferredRowH = FONT_XXS, rowCount <= 6 and 14 or 13
+        end
+    else
+        if rowCount <= 4 and maxRowH >= 22 then
+            font, preferredRowH = FONT_STD, 22
+        elseif rowCount <= 6 and maxRowH >= 18 then
+            font, preferredRowH = FONT_XS, 19
+        else
+            font, preferredRowH = FONT_XXS, rowCount <= 9 and 16 or 14
+        end
+    end
+
+    return font, math.max(1, math.min(preferredRowH, maxRowH))
+end
+
+local function drawTelemetryPanel(x, y, width, rows, availableHeight, palette, compact)
+    local font, rowH = getTelemetryPanelLayout(#rows, availableHeight, compact)
+    lcd.font(font)
+    for i, row in ipairs(rows) do
+        local rowY = y + (i - 1) * rowH
+        lcd.color(palette.textColor)
+        lcd.drawText(x, rowY, row[1], 0)
+        local value, unit = row[2] or "--", row[3] or ""
+        local valueW, unitW = lcd.getTextSize(value), lcd.getTextSize(unit)
+        local valueX = x + width - valueW - unitW - (unit ~= "" and 3 or 0)
+        lcd.color(palette.textColor)
+        lcd.drawText(valueX, rowY, value, 0)
+        if unit ~= "" and value ~= "--" then
+            lcd.color(palette.gaugeColor)
+            lcd.drawText(valueX + valueW + 3, rowY, unit, 0)
+        end
+        lcd.color(palette.bgGaugeColor)
+        lcd.drawLine(x, rowY + rowH - 2, x + width, rowY + rowH - 2)
+    end
+end
+
+local function drawStatusHeader(cx, y, status, chrono, width, palette, compact)
+    local statusText = string.upper(status or "NO DATA")
+    local statusBgColor = lcd.RGB(52, 56, 60)
+    local statusFont = compact and FONT_XL or FONT_XXL
+    lcd.font(statusFont)
+    local statusW, statusH = lcd.getTextSize(statusText)
+    local minimumFrameW = math.floor(width * 0.92)
+    local frameW = math.min(width,
+        math.max(minimumFrameW, statusW + (compact and 26 or 40)))
+    local frameH = compact and 54 or 72
+    local frameX = math.floor(cx - frameW / 2)
+    local statusCx = frameX + frameW / 2
+    local opticalOffset = compact and 1 or 2
+    local statusY = y + math.floor((frameH - statusH) / 2) + opticalOffset
+
+    lcd.color(statusBgColor)
+    lcd.drawFilledRectangle(frameX + 1, y + 1, frameW - 2, frameH - 2)
+
+    lcd.color(palette.gaugeColor)
+    lcd.drawLine(frameX, y, frameX + frameW, y)
+    lcd.drawLine(frameX + frameW, y, frameX + frameW, y + frameH)
+    lcd.drawLine(frameX + frameW, y + frameH, frameX, y + frameH)
+    lcd.drawLine(frameX, y + frameH, frameX, y)
+
+    drawCentered(statusCx, statusY, statusText, statusFont, palette.textColor)
+
+    local chronoY = y + frameH + (compact and 7 or 9)
+    local chronoFont = compact and FONT_XL or FONT_XXL
+    drawCentered(cx, chronoY, chrono, chronoFont, palette.textColor)
+    lcd.font(chronoFont)
+    local _, chronoValueH = lcd.getTextSize(chrono)
+    return chronoY + chronoValueH
+end
+
+local function drawGib2aLogo(centerX, y, compact)
+    if gib2aLogo == nil or not lcd.drawBitmap then
+        return
+    end
+
+    local logoW = compact and GIB2A_LOGO_COMPACT_WIDTH or GIB2A_LOGO_WIDTH
+    local logoH = compact and GIB2A_LOGO_COMPACT_HEIGHT or GIB2A_LOGO_HEIGHT
+    lcd.drawBitmap(math.floor(centerX - logoW / 2), math.floor(y), gib2aLogo, logoW, logoH)
+end
+
+local function drawFuelFlow(cx, y, widget, palette, compact)
+    if widget.fuelFlowSource == nil then
+        return
+    end
+
+    local label = widget.ecuType == 5 and "PUMP FLOW" or "FUEL FLOW"
+    local value = dashboardValue(widget.fuelFlowValue)
+    local unitText = value == "--" and "" or " ml/min"
+    local font = compact and FONT_XS or FONT_STD
+    lcd.font(font)
+    local labelText = label .. "  "
+    local labelW = lcd.getTextSize(labelText)
+    local valueW = lcd.getTextSize(value)
+    local unitW = lcd.getTextSize(unitText)
+    local x = math.floor(cx - (labelW + valueW + unitW) / 2)
+    lcd.color(palette.textColor)
+    lcd.drawText(x, y, labelText, 0)
+    lcd.drawText(x + labelW, y, value, 0)
+    if unitText ~= "" then
+        lcd.color(palette.gaugeColor)
+        lcd.drawText(x + labelW + valueW, y, unitText, 0)
+    end
+end
+
+local function drawSegmentedGauge(cx, cy, radius, percent, maxPercent, palette)
+    local inner = math.max(1, radius - math.max(5, math.floor(radius * 0.13)))
+    local active = math.max(0, math.min(maxPercent, percent or 0))
+    local yellow = lcd.RGB and lcd.RGB(255, 210, 0) or getWarnColor()
+    local orange = lcd.RGB and lcd.RGB(255, 110, 0) or getWarnColor()
+    for i = 0, 23 do
+        local fromP, midP = maxPercent * i / 24, maxPercent * (i + 0.5) / 24
+        local color = palette.bgGaugeColor
+        if active > fromP then
+            if midP < maxPercent * 0.62 then color = palette.gaugeColor
+            elseif midP < maxPercent * 0.78 then color = yellow
+            elseif midP < maxPercent * 0.91 then color = orange
+            else color = palette.alertColor end
+        end
+        if lcd.drawAnnulusSector then
+            lcd.color(color)
+            lcd.drawAnnulusSector(cx, cy, inner, radius,
+                210 + 300 * i / 24, 210 + 300 * (i + 0.82) / 24)
+        end
+    end
+end
+
+local function drawMainGauge(cx, cy, radius, value, label, unit, percent, palette, compact)
+    drawSegmentedGauge(cx, cy, radius, percent, 110, palette)
+    drawCentered(cx, cy - (compact and 21 or 30), value,
+        compact and FONT_XL or FONT_XXL, palette.textColor)
+    local labelY = unit ~= "" and (cy + (compact and 3 or 6))
+        or (cy + (compact and 8 or 14))
+    drawCentered(cx, labelY, label,
+        compact and FONT_XS or FONT_STD, palette.textColor)
+    if unit ~= "" then
+        drawCentered(cx, cy + (compact and 16 or 24), unit,
+            compact and FONT_XXS or FONT_XS, palette.gaugeColor)
+    end
+end
+
+local function drawPumpGauge(cx, cy, radius, value, percent, palette, compact)
+    drawSegmentedGauge(cx, cy, radius, percent, 100, palette)
+    drawCentered(cx, cy - (compact and 22 or 29), value,
+        compact and FONT_L or FONT_XL, palette.textColor)
+    drawCentered(cx, cy + (compact and 4 or 6), "PUMP",
+        compact and FONT_XXS or FONT_XS, palette.textColor)
+end
+
+local function drawFuelGauge(x, y, width, percent, value, palette, compact)
+    local red = palette.alertColor
+    local yellow = lcd.RGB and lcd.RGB(255, 210, 0) or getWarnColor()
+    local barH = compact and 16 or 24
+    local p = math.max(0, math.min(100, percent or 0))
+
+    local fuelTextFont = compact and FONT_XS or FONT_STD
+    local fuelLabelText = "FUEL"
+    local valueText = value
+    local percentText = " %"
+    local labelValueSpacing = compact and 4 or 7
+    lcd.font(fuelTextFont)
+    local fuelLabelW, fuelTextH = lcd.getTextSize(fuelLabelText)
+    local valueW, valueH = lcd.getTextSize(valueText)
+    local percentW, percentH = lcd.getTextSize(percentText)
+    local textGroupW = fuelLabelW + labelValueSpacing + valueW + percentW
+    local textGroupH = math.max(fuelTextH, math.max(valueH, percentH))
+
+    local fuelBarX = x
+    local fuelBarW = math.max(1, width)
+    local textGroupX = fuelBarX + math.floor((fuelBarW - textGroupW) / 2)
+    local textGroupY = y + math.floor((barH - textGroupH) / 2)
+    local valueX = textGroupX + fuelLabelW + labelValueSpacing
+    local percentX = valueX + valueW
+
+    lcd.color(palette.bgGaugeColor)
+    lcd.drawFilledRectangle(fuelBarX, y, fuelBarW, barH)
+
+    local activeWidth = math.floor(fuelBarW * p / 100)
+    local function drawActiveZone(fromPercent, toPercent, color)
+        local zoneX = math.floor(fuelBarW * fromPercent / 100)
+        local zoneEnd = math.min(activeWidth, math.floor(fuelBarW * toPercent / 100))
+        if zoneEnd > zoneX then
+            lcd.color(color)
+            lcd.drawFilledRectangle(fuelBarX + zoneX, y, zoneEnd - zoneX, barH)
+        end
+    end
+    drawActiveZone(0, 25, red)
+    drawActiveZone(25, 50, yellow)
+    drawActiveZone(50, 100, palette.gaugeColor)
+
+    lcd.font(fuelTextFont)
+    lcd.color(palette.bgColor)
+    lcd.drawText(textGroupX + 1, textGroupY + 1, fuelLabelText, 0)
+    lcd.drawText(valueX + 1, textGroupY + 1, valueText, 0)
+    lcd.drawText(percentX + 1, textGroupY + 1, percentText, 0)
+    lcd.color(palette.textColor)
+    lcd.drawText(textGroupX, textGroupY, fuelLabelText, 0)
+    lcd.drawText(valueX, textGroupY, valueText, 0)
+    lcd.color(palette.gaugeColor)
+    lcd.drawText(percentX, textGroupY, percentText, 0)
+
+    lcd.font(compact and FONT_XXS or FONT_XS)
+    lcd.color(palette.textColor)
+    local labels = { "0%", "25%", "50%", "75%", "100%" }
+    for i = 0, 4 do
+        local px = fuelBarX + math.floor(fuelBarW * i / 4)
+        local tw = lcd.getTextSize(labels[i + 1])
+        local labelX = math.max(x, math.min(x + width - tw, px - tw / 2))
+        lcd.drawText(labelX, y + barH + 2, labels[i + 1], 0)
+    end
+end
+
+local function paint(widget)
+    local w, h = lcd.getWindowSize()
+    local palette = getPalette(widget.theme or 0)
+    lcd.color(palette.bgColor)
+    lcd.drawFilledRectangle(0, 0, w, h)
+    local compact = w < 700 or h < 430
+    local margin, centerX = math.max(5, math.floor(w * 0.012)), math.floor(w / 2)
+    local panelW = math.floor(w * 0.255)
+    local gaugeY = math.floor(h * (compact and 0.60 or 0.58))
+    local bigR = math.floor(math.min(w * 0.17, h * (compact and 0.225 or 0.25)))
+    local panelAvailableHeight = math.max(1, gaugeY - bigR - margin - 2)
+
+    local headerBottomY = drawStatusHeader(centerX, margin, getStatusText(widget.ecuType, widget.temp2Value),
+        fmtTimeMMSS(widget.chronoValue), math.floor(w * (compact and 0.44 or 0.46)), palette, compact)
+    drawGib2aLogo(centerX, headerBottomY + (compact and 3 or 5), compact)
+
+    if w >= 600 and h >= 360 then
+        local pressureUnit = widget.ecuType == 5 and "kPa" or "mBar"
+        local leftRows = {}
+        if widget.ambTempSource ~= nil then
+            leftRows[#leftRows + 1] = { "AMB T", dashboardValue(widget.ambTempValue, 1), "°C" }
+        end
+        if widget.pressSource ~= nil then
+            leftRows[#leftRows + 1] = { "PRESS", dashboardValue(widget.pressValue), pressureUnit }
+        end
+        if widget.altSource ~= nil then
+            leftRows[#leftRows + 1] = { "ALT", dashboardValue(widget.altValue), "m" }
+        end
+        if widget.adc3Source ~= nil then
+            leftRows[#leftRows + 1] = { "ECU V", dashboardValue(widget.adc3Value, 1), "V" }
+        end
+        if widget.pumpAmpSource ~= nil then
+            leftRows[#leftRows + 1] = { "PUMP A", dashboardValue(widget.pumpAmpValue, 1), "A" }
+        end
+        if widget.battUsedSource ~= nil then
+            leftRows[#leftRows + 1] = { "BATT", dashboardValue(widget.battUsedValue), "mAh" }
+        end
+        if widget.engineTimeSource ~= nil then
+            leftRows[#leftRows + 1] = { "ENG T", fmtTimeMMSS(widget.engineTimeValue), "" }
+        end
+        if widget.serialSource ~= nil then
+            leftRows[#leftRows + 1] = { "S/N", dashboardValue(widget.serialValue), "" }
+        end
+
+        local throttle = throttleToPercent(widget.throttleValue)
+        local ecuThrottle = widget.ecuThrottleValue
+        if type(ecuThrottle) == "number" then ecuThrottle = math.max(0, math.min(100, ecuThrottle)) end
+        local rightRows = {}
+        if widget.rxbattSource ~= nil then
+            rightRows[#rightRows + 1] = { "RX V", dashboardValue(widget.rxbattValue, 1), "V" }
+        end
+        if widget.rssi1Source ~= nil then
+            rightRows[#rightRows + 1] = { "RSSI 2.4", dashboardValue(widget.rssi1Value), widget.rssi1Unit or "" }
+        end
+        if widget.rssi2Source ~= nil then
+            rightRows[#rightRows + 1] = { "RSSI 900", dashboardValue(widget.rssi2Value), widget.rssi2Unit or "" }
+        end
+        if widget.diy1Source ~= nil then
+            rightRows[#rightRows + 1] = { "DIY1", dashboardValue(widget.diy1Value, 1), widget.diy1Unit or "" }
+        end
+        if widget.diy2Source ~= nil then
+            rightRows[#rightRows + 1] = { "DIY2", dashboardValue(widget.diy2Value, 1), widget.diy2Unit or "" }
+        end
+        if widget.diy3Source ~= nil then
+            rightRows[#rightRows + 1] = { "DIY3", dashboardValue(widget.diy3Value, 1), widget.diy3Unit or "" }
+        end
+        if widget.throttleSource ~= nil then
+            rightRows[#rightRows + 1] = { "THR", dashboardValue(throttle), "%" }
+        end
+        if widget.ecuThrottleSource ~= nil then
+            rightRows[#rightRows + 1] = { "ECU THR", dashboardValue(ecuThrottle), "%" }
+        end
+        if widget.heliTpRpmSource ~= nil then
+            rightRows[#rightRows + 1] = { "HELI/TP", dashboardValue(widget.heliTpRpmValue), "RPM" }
+        end
+        if widget.engineCurrentSource ~= nil then
+            rightRows[#rightRows + 1] = { "ECU CUR", dashboardValue(widget.engineCurrentValue, 1), "A" }
+        end
+        if widget.fuelConsumptionSource ~= nil then
+            rightRows[#rightRows + 1] = { "FUEL USE", dashboardValue(widget.fuelConsumptionValue), "ml" }
+        end
+
+        drawTelemetryPanel(margin, margin, panelW, leftRows,
+            panelAvailableHeight, palette, compact)
+        drawTelemetryPanel(w - margin - panelW, margin, panelW, rightRows,
+            panelAvailableHeight, palette, compact)
+    end
+
+    local rpm = type(widget.rpmValue) == "number" and widget.rpmValue or nil
+    local egt = type(widget.temp1Value) == "number" and widget.temp1Value or nil
+    local pumpRaw = type(widget.adc4Value) == "number" and widget.adc4Value or nil
+    local rpmMax = widget.rpmMax and widget.rpmMax > 0 and widget.rpmMax or 160000
+    local egtMax = widget.egtMax and widget.egtMax >= 200 and widget.egtMax or 700
+    local pumpMax = widget.ecuType == 0 and XICOY_PUMP_RAW_MAX or (widget.pumpMax or 100)
+    drawMainGauge(math.floor(w * 0.235), gaugeY, bigR, dashboardValue(rpm), "RPM", "",
+        mapToPercentRaw(rpm, rpmMax), palette, compact)
+    drawMainGauge(math.floor(w * 0.765), gaugeY, bigR, dashboardValue(egt), "EGT", "",
+        mapToPercentRaw(egt, egtMax), palette, compact)
+    local pumpY = math.floor(h * (compact and 0.66 or 0.65))
+    local pumpR = math.floor(bigR * 0.59)
+    drawPumpGauge(centerX, pumpY, pumpR,
+        dashboardValue(decodePumpDisplayValue(widget.ecuType, pumpRaw)),
+        clamp01(mapToPercentRaw(pumpRaw, pumpMax)), palette, compact)
+    drawFuelFlow(centerX, pumpY + pumpR + (compact and 2 or 4), widget, palette, compact)
+
+    local fuelAreaX = margin
+    local fuelAreaW = w - 2 * margin
+    drawFuelGauge(fuelAreaX,
+        math.floor(h * (compact and 0.90 or 0.89)), fuelAreaW, clamp01(widget._fuelPercent),
+        dashboardValue(widget._fuelDisplayValue or widget.fuelValue), palette, compact)
+end
 
 local function buildConfig(widget)
     local line
@@ -2493,6 +2849,21 @@ local function wakeup(widget)
     dirty = updateField(widget, "diy1Source",     "diy1Value") or dirty
     dirty = updateField(widget, "diy2Source",     "diy2Value") or dirty
     dirty = updateField(widget, "diy3Source",     "diy3Value") or dirty
+    if widget._diy1UnitSource ~= widget.diy1Source then
+        widget._diy1UnitSource = widget.diy1Source
+        widget.diy1Unit = sourceUnit(widget.diy1Source) or ""
+        dirty = true
+    end
+    if widget._diy2UnitSource ~= widget.diy2Source then
+        widget._diy2UnitSource = widget.diy2Source
+        widget.diy2Unit = sourceUnit(widget.diy2Source) or ""
+        dirty = true
+    end
+    if widget._diy3UnitSource ~= widget.diy3Source then
+        widget._diy3UnitSource = widget.diy3Source
+        widget.diy3Unit = sourceUnit(widget.diy3Source) or ""
+        dirty = true
+    end
 
     -- ProHub Extended / Maximum
     dirty = updateField(widget, "ambTempSource",      "ambTempValue") or dirty
@@ -2511,6 +2882,14 @@ local function wakeup(widget)
 
     dirty = updateField(widget, "rssi1Source",    "rssi1Value") or dirty
     dirty = updateField(widget, "rssi2Source",    "rssi2Value") or dirty
+    if widget._rssi1UnitSource ~= widget.rssi1Source then
+        widget._rssi1UnitSource = widget.rssi1Source
+        widget.rssi1Unit = sourceUnit(widget.rssi1Source)
+    end
+    if widget._rssi2UnitSource ~= widget.rssi2Source then
+        widget._rssi2UnitSource = widget.rssi2Source
+        widget.rssi2Unit = sourceUnit(widget.rssi2Source)
+    end
     dirty = updateField(widget, "throttleSource", "throttleValue") or dirty
 
     -- Fuel (valeur réelle)
@@ -2746,9 +3125,10 @@ end
 -------------------------------------------------------------
 
 local function init()
+    loadGib2aLogo()
     system.registerWidget({
         key        = "GIB2A",
-			name       = "GIB2A Xicoy ProHub ETHOS Widget V" .. WIDGET_VERSION,
+			name       = "GIB2A TURBINE Widget V" .. WIDGET_VERSION,
         create     = create,
         wakeup     = wakeup,
         configure  = configure,

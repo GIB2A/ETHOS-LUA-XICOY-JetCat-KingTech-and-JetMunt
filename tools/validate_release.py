@@ -4,10 +4,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "src/GIB2A/main.lua"
-EXPECTED_VERSION = "26.2.2"
-EXPECTED_HASH = "3CE21D266AC3745818D5ED7011F171E55F88BE129805605A2DC0F0C885EB8CB6"
-EXPECTED_SIZE = 93474
-EXPECTED_LINES = 2761
+LOGO = ROOT / "src/GIB2A/gib2a_logo_ethos_180.png"
+EXPECTED_VERSION = "26.3.0"
+EXPECTED_HASH = "FDAD025242E8C4114E88DBE8755BD368D11E16703A6C3160304D1F7D592D5915"
+EXPECTED_LOGO_HASH = "14EDE1DE9DDE6F644000F1481DCA817C6E782E183D1AB7D9314FCA6D99F4FA7B"
+EXPECTED_SIZE = 110205
+EXPECTED_LINES = 3141
 errors = []
 
 def check(ok, message):
@@ -17,6 +19,7 @@ def check(ok, message):
 raw = SOURCE.read_bytes()
 check((ROOT / "VERSION").read_text(encoding="utf-8").strip() == EXPECTED_VERSION, "version")
 check(hashlib.sha256(raw).hexdigest().upper() == EXPECTED_HASH, "source SHA-256")
+check(hashlib.sha256(LOGO.read_bytes()).hexdigest().upper() == EXPECTED_LOGO_HASH, "logo SHA-256")
 check(len(raw) == EXPECTED_SIZE, "source size")
 check(len(raw.splitlines()) == EXPECTED_LINES, "source line count")
 check(not raw.startswith(b"\xef\xbb\xbf"), "no UTF-8 BOM")
@@ -27,7 +30,8 @@ except UnicodeDecodeError:
     text = ""
     check(False, "UTF-8")
 check(b"\r" not in raw, "LF line endings")
-check('local WIDGET_VERSION = "26.2.2"' in text, "internal version")
+check('local WIDGET_VERSION = "26.3.0"' in text, "internal version")
+check('local GIB2A_LOGO_PATH = "gib2a_logo_ethos_180.png"' in text, "logo path")
 check(re.search(r'key\s*=\s*"GIB2A"', text) is not None, "widget key")
 reads = re.findall(r'storage\.read\(\s*"([^"]+)"', text)
 writes = re.findall(r'storage\.write\(\s*"([^"]+)"', text)
@@ -51,15 +55,19 @@ else:
     print("SKIP: Lua interpreter/compiler unavailable")
 
 tracked_text = []
-for path in ROOT.rglob("*"):
-    if path.is_file() and ".git" not in path.parts and "archive" not in path.parts and "release" not in path.parts:
-        if path.suffix.lower() in {".md", ".py", ".ps1", ".yml", ".yaml", ".txt", ""}:
-            try: tracked_text.append((path, path.read_text(encoding="utf-8")))
-            except UnicodeDecodeError: pass
+release_files = subprocess.run(
+    ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+    cwd=ROOT, capture_output=True, text=True, check=True,
+).stdout.splitlines()
+for relative in release_files:
+    path = ROOT / relative
+    if path.is_file() and path.suffix.lower() in {".md", ".py", ".ps1", ".yml", ".yaml", ".txt", ""}:
+        try: tracked_text.append((path, path.read_text(encoding="utf-8")))
+        except UnicodeDecodeError: pass
 check(not any(local_path_re.search(value) for _, value in tracked_text), "no local paths in release files")
 secret_re = re.compile(r"(ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16})")
 check(not any(secret_re.search(value) for _, value in tracked_text), "no obvious secrets")
-required_docs = ["README.md","README_FR.md","CHANGELOG.md","docs/COMPATIBILITY.md","docs/CONFIGURATION.md","docs/INSTALLATION.md","docs/DISCLAIMER.md","docs/TROUBLESHOOTING.md","docs/release-notes/V26.2.2.md"]
+required_docs = ["README.md","README_FR.md","CHANGELOG.md","docs/COMPATIBILITY.md","docs/CONFIGURATION.md","docs/INSTALLATION.md","docs/DISCLAIMER.md","docs/TROUBLESHOOTING.md","docs/release-notes/V26.3.0.md"]
 check(all((ROOT / item).is_file() for item in required_docs), "required documentation")
 bad_links = []
 link_re = re.compile(r"\[[^\]]+\]\((?!https?://|mailto:|#)([^)]+)\)")
@@ -70,18 +78,22 @@ for path, value in tracked_text:
         if clean and not (path.parent / clean).resolve().exists(): bad_links.append(f"{path.relative_to(ROOT)} -> {link}")
 check(not bad_links, "relative Markdown links" + (": " + ", ".join(bad_links) if bad_links else ""))
 
-release = ROOT / "release" / "V26.2.2"
+release = ROOT / "releases" / "V26.3.0"
 for archive in sorted(release.glob("*.zip")) if release.exists() else []:
     try:
         with zipfile.ZipFile(archive) as zf:
             names = zf.namelist()
             check(not any(n.startswith((".git/","archive/")) or n.endswith((".tmp",".bak",".orig")) for n in names), f"{archive.name} clean entries")
             if archive.name.endswith("-SD.zip"):
-                check(names == ["SCRIPTS/GIB2A/main.lua"], f"{archive.name} exact structure")
+                check(set(names) == {
+                    "SCRIPTS/GIB2A/main.lua",
+                    "SCRIPTS/GIB2A/gib2a_logo_ethos_180.png",
+                } and len(names) == 2, f"{archive.name} exact structure")
             elif archive.name.endswith("-ETHOS-Suite.zip"):
                 expected = {
                     "CHANGELOG.md", "INSTALLATION.md", "README.md",
                     "ethos_lua_manifest.json", "main.lua",
+                    "gib2a_logo_ethos_180.png",
                 }
                 check(set(names) == expected and len(names) == len(expected), f"{archive.name} exact structure")
                 manifest = json.loads(zf.read("ethos_lua_manifest.json").decode("utf-8"))
@@ -90,16 +102,21 @@ for archive in sorted(release.glob("*.zip")) if release.exists() else []:
                     and manifest.get("version") == EXPECTED_VERSION
                     and manifest.get("folder") == "GIB2A"
                     and manifest.get("files") == [
-                        "main.lua", "README.md", "CHANGELOG.md", "INSTALLATION.md"
+                        "main.lua", "gib2a_logo_ethos_180.png", "README.md",
+                        "CHANGELOG.md", "INSTALLATION.md"
                     ],
                     f"{archive.name} manifest coherence",
                 )
             mains = [n for n in names if n == "main.lua" or n.endswith("/main.lua")]
+            logos = [n for n in names if n == "gib2a_logo_ethos_180.png" or n.endswith("/gib2a_logo_ethos_180.png")]
             check(len(mains) == 1, f"{archive.name} has one main.lua")
+            check(len(logos) == 1, f"{archive.name} has one logo")
             if mains:
                 payload = zf.read(mains[0])
                 check(hashlib.sha256(payload).hexdigest().upper() == EXPECTED_HASH, f"{archive.name} main.lua hash")
                 check(len(payload) == EXPECTED_SIZE and b"\r" not in payload, f"{archive.name} main.lua format")
+            if logos:
+                check(hashlib.sha256(zf.read(logos[0])).hexdigest().upper() == EXPECTED_LOGO_HASH, f"{archive.name} logo hash")
     except zipfile.BadZipFile:
         check(False, f"{archive.name} valid ZIP")
 

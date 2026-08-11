@@ -1,5 +1,17 @@
 # Changelog
 
+## [26.3.0] - 2026-08-11
+
+### Added
+- external GIB2A PNG logo distributed with the widget
+- left and right telemetry-information panels
+- adaptive panel typography based on visible sensors
+
+### Changed
+- redesigned pilot-focused main dashboard
+- centralized ECU status and flight timer
+- redesigned RPM, EGT, pump and fuel rendering
+
 ## [26.2.2] - 2026-07-31
 
 ### Added
