@@ -6,7 +6,7 @@ redémarre et ne commande jamais une turbine.
 
 [Read in English](README.md)
 
-![Aperçu du widget GIB2A](assets/gib2a-widget-preview.jpg)
+![GIB2A TURBINE Widget V26.3.1](assets/GIB2A-V26.3.1.png)
 
 ## Fonctions
 

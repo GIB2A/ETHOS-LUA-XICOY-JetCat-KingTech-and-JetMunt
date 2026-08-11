@@ -5,7 +5,7 @@ turbine and ECU telemetry it never starts, stops, restarts or controls a turbine
 
 [Lire en français](README_FR.md)
 
-![GIB2A widget preview](assets/gib2a-widget-preview.jpg)
+![GIB2A TURBINE Widget V26.3.1](assets/GIB2A-V26.3.1.png)
 
 [Download GIB2A V26.3.1 for ETHOS Suite](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/download/v26.3.1/GIB2A-Xicoy-ProHub-Widget-V26.3.1-ETHOS-Suite.zip)
 
