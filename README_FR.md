@@ -6,7 +6,11 @@ redémarre et ne commande jamais une turbine.
 
 [Read in English](README.md)
 
-![Tableau de bord de télémétrie turbine GIB2A](assets/gib2a-widget-preview.jpg)
+![Tableau de bord de télémétrie turbine GIB2A](assets/gib2a-widget-preview.png)
+
+[Télécharger GIB2A V26.3.2 pour ETHOS Suite](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/download/v26.3.2/GIB2A-Xicoy-ProHub-Widget-V26.3.2-ETHOS-Suite.zip)
+
+> **Important :** désinstallez toute version précédente de GIB2A avant d’installer V26.3.2.
 
 ## Fonctions
 

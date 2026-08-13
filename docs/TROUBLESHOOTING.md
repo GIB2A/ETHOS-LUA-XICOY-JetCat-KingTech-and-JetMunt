@@ -6,8 +6,9 @@
   does not restore values.
 - Wrong value: verify ECU brand, telemetry mode and source assignment.
 - Xicoy: verify Basic/Extended/Maximum matches ProHub.
-- Enjet: use DTA auto-bind only for the intended DTA telemetry.
-- Other supported brands: prefer explicit manual source assignment.
+- EnJet: use DTA auto-bind only for the intended DTA telemetry.
+- JetCat: Engine 1 supports automatic binding. Verify the expected Engine 1 telemetry sensors are discovered before using auto-bind.
+- Linton/KAVAN, KingTech and Swiwin: use explicit manual source assignment.
 - Audio missing: select an accessible sound file for the active ETHOS voice.
 
 Test alarms and values on the ground. Alarms do not replace pilot monitoring.

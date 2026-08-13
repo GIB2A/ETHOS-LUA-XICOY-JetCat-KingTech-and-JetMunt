@@ -10,7 +10,7 @@
 - [ ] Create the commit.
 - [ ] Push branch `main` after explicit authorization.
 - [ ] Verify GitHub Actions after the push.
-- [ ] Create tag `v26.3.0`.
+- [ ] Create the release tag matching `VERSION`.
 - [ ] Push the tag.
 - [ ] Create the GitHub Release.
 - [ ] Attach ZIP files.
