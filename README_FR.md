@@ -1,12 +1,12 @@
 # GIB2A FrSky ETHOS Turbine Telemetry
 
-GIB2A V26.3.1 est un widget Lua de télémétrie uniquement pour les radios FrSky
+GIB2A V26.3.2 est un widget Lua de télémétrie uniquement pour les radios FrSky
 ETHOS. Il affiche la télémétrie turbine et ECU ; il ne démarre, n’arrête, ne
 redémarre et ne commande jamais une turbine.
 
 [Read in English](README.md)
 
-![GIB2A TURBINE Widget V26.3.1](assets/GIB2A-V26.3.1.png)
+![Tableau de bord de télémétrie turbine GIB2A](assets/gib2a-widget-preview.jpg)
 
 ## Fonctions
 
@@ -17,6 +17,9 @@ redémarre et ne commande jamais une turbine.
 - Nouveau rendu RPM, EGT, pompe et carburant
 - Modes Xicoy Basic, Extended et Maximum avec auto-bind AppID correspondant
 - Auto-bind Enjet DTA
+- Auto-bind JetCat Engine 1 pour 11 capteurs de télémétrie
+- Décodage JetCat EngState et des conditions d’arrêt
+- Alertes JetCat FlameOut et Auto-Restart
 - Affectation manuelle des sources pour chaque ECU pris en charge
 - Conversion du radio THR ETHOS de `-1024..+1024` vers `0..100 %`
 - Sources ECU THR et Heli/TP RPM
@@ -36,7 +39,7 @@ redémarre et ne commande jamais une turbine.
 | Linton | Oui | Oui | Non | Sources manuelles |
 | KingTech | Oui | Oui | Non | Sources manuelles |
 | Swiwin | Oui | Oui | Non | Sources manuelles |
-| JetCat | Oui | Oui | Non | Sources manuelles |
+| JetCat | Oui | Oui | Oui | Engine 1 |
 
 GIB2A est un projet indépendant sans affiliation avec les fabricants cités.
 Aucun fabricant n’a officiellement certifié ce logiciel sauf mention explicite.
@@ -56,8 +59,9 @@ la structure à la racine proviennent du paquet officiel V1.1. Voir
 
 Choisir la marque ECU et le mode, découvrir les capteurs dans ETHOS, employer
 l’auto-bind disponible puis vérifier chaque source. Xicoy propose Basic, Extended
-et Maximum avec auto-bind correspondant. Enjet possède son auto-bind DTA. Linton,
-KingTech, Swiwin et JetCat utilisent principalement l’affectation manuelle.
+et Maximum avec auto-bind correspondant. Enjet possède son auto-bind DTA.
+L’auto-bind JetCat Engine 1 couvre 11 capteurs. Linton/KAVAN, KingTech et Swiwin
+conservent l’affectation manuelle.
 Après redémarrage de l’ECU ou du simulateur, relancer si nécessaire la découverte
 de télémétrie ETHOS. Voir [Configuration](docs/CONFIGURATION.md).
 
@@ -73,12 +77,12 @@ procédures fabricants restent prioritaires. Voir [Avertissement](docs/DISCLAIME
 
 - [Dépôt du projet](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry)
 - [Versions publiées](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases)
-- [Version V26.3.1](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/tag/v26.3.1)
+- [Version V26.3.2](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/tag/v26.3.2)
 - [Compatibilité](docs/COMPATIBILITY.md)
 - [Configuration](docs/CONFIGURATION.md)
 - [Installation](docs/INSTALLATION.md)
 - [Dépannage](docs/TROUBLESHOOTING.md)
-- [Notes V26.3.1](docs/release-notes/V26.3.1.md)
+- [Notes V26.3.2](docs/release-notes/V26.3.2.md)
 - [Contribuer](docs/CONTRIBUTING.md)
 
 Signaler un problème via les [issues GitHub](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/issues).

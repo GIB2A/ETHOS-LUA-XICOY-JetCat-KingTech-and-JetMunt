@@ -2,10 +2,10 @@
   "manifestVersion": 1,
   "name": "GIB2A Xicoy ProHub Telemetry Widget",
   "key": "com.gib2a.ethos.xicoyprohub",
-  "version": "26.3.1",
+  "version": "26.3.2",
   "releaseNotes": {
     "format": "markdown",
-    "content": "## V26.3.1\n\n- Corrected ETHOS system-source handling for receiver voltage.\n- Corrected RSSI 2.4 GHz and 900 MHz source handling.\n- Displayed RSSI values with an explicit % unit.\n- Preserved turbine telemetry AppID mappings and auto-bind logic."
+    "content": "## V26.3.2\n\n- Added JetCat Engine 1 auto-binding.\n- Aligned JetCat EngState decoding with JetCat ETHOS v0.9.24.\n- Added JetCat shutdown-condition, FlameOut and Auto-Restart support.\n- Improved ECU telemetry-source isolation."
   },
   "folder": "GIB2A",
   "files": [

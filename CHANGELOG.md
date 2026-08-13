@@ -1,5 +1,24 @@
 # Changelog
 
+## [26.3.2] - 2026-08-13
+
+### Added
+- JetCat Engine 1 auto-bind for 11 telemetry sensors
+- JetCat shutdown-condition decoding, including legacy negative formats
+- JetCat FlameOut and Auto-Restart alerts
+
+### Changed
+- aligned JetCat EngState decoding with JetCat ETHOS v0.9.24
+- isolated ECU-specific telemetry sources when changing turbine manufacturer
+- refactored persistence and wakeup processing with static tables
+- reduced repetitive Lua code while keeping telemetry reads outside `paint()`
+- improved the dashboard and sensor-information readability
+
+### Unchanged
+- Xicoy ProHub and EnJet DTA auto-bind support
+- manual source assignment for Linton/KAVAN, KingTech and Swiwin
+- Xicoy FlameOut and Restart alerts
+
 ## [26.3.1] - 2026-08-11
 
 ### Fixed

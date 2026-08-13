@@ -1,4 +1,4 @@
--- GIB2A TURBINE Widget V26.3.1
+-- GIB2A TURBINE Widjet V26.3.2
 -- Widget de télémétrie turbine multi-ECU pour ETHOS
 -- Compatibilité Xicoy ProHub, Enjet, Linton, KingTech, Swiwin et JetCat
 -- Modes Xicoy Basic, Extended et Maximum avec auto-bind des capteurs
@@ -21,8 +21,7 @@ end
 
 local function playConfiguredAudio(fileName)
     if type(fileName) ~= "string"
-        or fileName == ""
-        or not system.playFile then
+        or fileName == "" then
         return
     end
 
@@ -39,7 +38,7 @@ local TELEMETRY_MODE_BASIC = 0
 local TELEMETRY_MODE_EXTENDED = 1
 local TELEMETRY_MODE_MAXIMUM = 2
 local SETUP_MODE_SCHEMA = 2
-local WIDGET_VERSION = "26.3.1"
+local WIDGET_VERSION = "26.3.2"
 local FUEL_YELLOW_THRESHOLD = 50
 local FUEL_RED_THRESHOLD = 25
 local GIB2A_LOGO_PATH = "gib2a_logo_ethos_180.png"
@@ -50,7 +49,7 @@ local GIB2A_LOGO_COMPACT_HEIGHT = 40
 local gib2aLogo = nil
 
 local function loadGib2aLogo()
-    if gib2aLogo ~= nil or not lcd or not lcd.loadBitmap then
+    if gib2aLogo ~= nil then
         return
     end
 
@@ -66,79 +65,140 @@ end
 -- 12.6 telemetry units = 1260 pump RPM = 100%.
 local XICOY_PUMP_RAW_MAX = 12.6
 
+local PERSISTENCE_PARAMS = {
+    { key = "chronoSource", default = nil },
+    { key = "throttleSource", default = nil },
+    { key = "rpmSource", default = nil },
+    { key = "heliTpRpmSource", default = nil },
+    { key = "temp1Source", default = nil },
+    { key = "temp2Source", default = nil },
+    { key = "adc3Source", default = nil },
+    { key = "adc4Source", default = nil },
+    { key = "fuelSource", default = nil },
+    { key = "diy1Source", default = nil },
+    { key = "diy2Source", default = nil },
+    { key = "diy3Source", default = nil },
+    { key = "ambTempSource", default = nil },
+    { key = "pressSource", default = nil },
+    { key = "altSource", default = nil },
+    { key = "fuelFlowSource", default = nil },
+    { key = "serialSource", default = nil },
+    { key = "battUsedSource", default = nil },
+    { key = "engineTimeSource", default = nil },
+    { key = "pumpAmpSource", default = nil },
+    { key = "engineCurrentSource", default = nil },
+    { key = "fuelConsumptionSource", default = nil },
+    { key = "rxbattSource", default = nil },
+    { key = "rssi1Source", default = nil },
+    { key = "rssi2Source", default = nil },
+    { key = "fuelAlertPercent", default = 35 },
+    { key = "fuelCriticalAlertPercent", default = 15 },
+    { key = "fuelAlertFile", default = nil },
+    { key = "fuelCriticalAlertFile", default = nil },
+    { key = "flameOutAlertFile", default = nil },
+    { key = "rpmMax", default = 160000 },
+    { key = "egtMax", default = 700 },
+    { key = "pumpMax", default = 100 },
+    { key = "theme", default = 0 },
+    { key = "ecuThrottleSource", default = nil },
+    { key = "fuelLevelCalloutFile", default = nil },
+    { key = "restartAlertFile", default = nil },
+}
+
+local NORMALIZED_TELEMETRY_SOURCE_FIELDS = {
+    rpmSource = true,
+    heliTpRpmSource = true,
+    ecuThrottleSource = true,
+    temp1Source = true,
+    temp2Source = true,
+    adc3Source = true,
+    adc4Source = true,
+    fuelSource = true,
+    diy1Source = true,
+    diy2Source = true,
+    diy3Source = true,
+    ambTempSource = true,
+    pressSource = true,
+    altSource = true,
+    fuelFlowSource = true,
+    serialSource = true,
+    battUsedSource = true,
+    engineTimeSource = true,
+    pumpAmpSource = true,
+    engineCurrentSource = true,
+    fuelConsumptionSource = true,
+}
+
 -------------------------------------------------------------
 -- Création du widget
 -------------------------------------------------------------
 
 local function create(zone, options)
-    return {
+    local widget = {
         zone    = zone,
         options = options,
+        _normalizedTelemetrySources = {},
 
         -- Chrono (timer ETHOS ou autre source temps)
-        chronoSource   = nil, chronoValue   = nil,
-        throttleSource = nil, throttleValue = nil,
+        chronoValue   = nil,
+        throttleValue = nil,
 
         -- Capteurs Xicoy / ETHOS
-        rpmSource      = nil, rpmValue      = nil,   -- RPM Sensor
-        heliTpRpmSource = nil, heliTpRpmValue = nil, -- Heli/TP RPM optional second shaft RPM
-        ecuThrottleSource = nil, ecuThrottleValue = nil,
-        temp1Source    = nil, temp1Value    = nil,   -- Temp 1 (EGT)
-        temp2Source    = nil, temp2Value    = nil,   -- Temp 2 (Status code)
-        adc3Source     = nil, adc3Value     = nil,   -- ADC3 (ECU V)
-        adc4Source     = nil, adc4Value     = nil,   -- ADC4 (Pump command / volt)
+        rpmValue      = nil,   -- RPM Sensor
+        heliTpRpmValue = nil, -- Heli/TP RPM optional second shaft RPM
+        ecuThrottleValue = nil,
+        temp1Value    = nil,   -- Temp 1 (EGT)
+        temp2Value    = nil,   -- Temp 2 (Status code)
+        adc3Value     = nil,   -- ADC3 (ECU V)
+        adc4Value     = nil,   -- ADC4 (Pump command / volt)
 
-        fuelSource               = nil, fuelValue             = nil,   -- Fuel remaining (valeur réelle)
-        fuelAlertPercent         = 35,                        -- Seuil alarme (% restant)
-        fuelCriticalAlertPercent = 15,                        -- Seuil alarme critique (% restant)
+        fuelValue                = nil,   -- Fuel remaining (valeur réelle)
         fuelColorSoundAlertsEnabled = true,
-        fuelLevelCalloutFile     = nil,
-        fuelAlertFile            = nil,                       -- Son alarme fuel (seuil)
-        fuelCriticalAlertFile    = nil,                       -- Son alarme fuel critique
         _fuelPercent             = nil,                       -- valeur interne %% (calculée)
         _fuelDisplayValue        = nil,
         xicoyFuelStartPercent    = 100,
         fuelMax                  = 100,                       -- Basic : 100%% = plein (Xicoy Fuel %)
-        flameOutAlertFile        = nil,                       -- Son alarme Flame Out Xicoy
-        restartAlertFile         = nil,
         _flameOutArmed           = false,                     -- armement apres moteur en fonctionnement
         _restartArmed            = false,
         _lastEcuStatus           = nil,                       -- derniere transition statut ECU
 
         -- DIY Xicoy / capteurs libres
-        diy1Source     = nil, diy1Value     = nil, diy1Unit = "", _diy1UnitSource = nil,
-        diy2Source     = nil, diy2Value     = nil, diy2Unit = "", _diy2UnitSource = nil,
-        diy3Source     = nil, diy3Value     = nil, diy3Unit = "", _diy3UnitSource = nil,
+        diy1Value     = nil, diy1Unit = "", _diy1UnitSource = nil,
+        diy2Value     = nil, diy2Unit = "", _diy2UnitSource = nil,
+        diy3Value     = nil, diy3Unit = "", _diy3UnitSource = nil,
 
         -- Mode Xicoy Extended / Maximum (ProHub)
-        ambTempSource      = nil, ambTempValue      = nil,   -- Ambient Temp (°C)
-        pressSource        = nil, pressValue        = nil,   -- Pressure (mBar)
-        altSource          = nil, altValue          = nil,   -- Altitude (m)
-        fuelFlowSource     = nil, fuelFlowValue     = nil,   -- Fuel Flow (ml/min)
-        serialSource       = nil, serialValue       = nil,   -- Serial Number
-        battUsedSource     = nil, battUsedValue     = nil,   -- Battery Used (mAh)
-        engineTimeSource   = nil, engineTimeValue   = nil,   -- Engine Time (s)
-        pumpAmpSource      = nil, pumpAmpValue      = nil,   -- Pump Amperage (0.1A)
+        ambTempValue      = nil,   -- Ambient Temp (°C)
+        pressValue        = nil,   -- Pressure (mBar)
+        altValue          = nil,   -- Altitude (m)
+        fuelFlowValue     = nil,   -- Fuel Flow (ml/min)
+        serialValue       = nil,   -- Serial Number
+        battUsedValue     = nil,   -- Battery Used (mAh)
+        engineTimeValue   = nil,   -- Engine Time (s)
+        pumpAmpValue      = nil,   -- Pump Amperage (0.1A)
 
         -- ENJET DTA
-        engineCurrentSource = nil, engineCurrentValue = nil,
-        fuelConsumptionSource = nil, fuelConsumptionValue = nil,
+        engineCurrentValue = nil,
+        fuelConsumptionValue = nil,
 
         -- Capteur général (RxBatt)
-        rxbattSource   = nil, rxbattValue   = nil,   -- RxBatt Sensor
+        rxbattValue   = nil,   -- RxBatt Sensor
 
         -- RSSI
-        rssi1Source    = nil, rssi1Value    = nil, rssi1Unit = "", -- RSSI Sensor 1 (2.4G)
-        rssi2Source    = nil, rssi2Value    = nil, rssi2Unit = "", -- RSSI Sensor 2 (900M)
+        rssi1Value    = nil, rssi1Unit = "", -- RSSI Sensor 1 (2.4G)
+        rssi2Value    = nil, rssi2Unit = "", -- RSSI Sensor 2 (900M)
 
         -- Échelles max pour les jauges (valeurs réelles)
-        rpmMax         = 160000,                     -- RPM max turbine (100%%)
-        egtMax         = 700,                        -- EGT max (°C)
-        pumpMax        = 100,                        -- Valeur max Pump
         telemetryMode  = TELEMETRY_MODE_BASIC,       -- 0=Basic, 1=Extended, 2=Maximum
         ecuType        = 0,                          -- 0=Xicoy, 1=JetCat, 2=KingTech, 3=Swiwin, 4=Linton, 5=Enjet
-        theme          = 0,                          -- 0=Std, 1=High contrast, 2=Amber
     }
+
+    for i = 1, #PERSISTENCE_PARAMS do
+        local param = PERSISTENCE_PARAMS[i]
+        widget[param.key] = param.default
+    end
+
+    return widget
 end
 
 -------------------------------------------------------------
@@ -363,51 +423,107 @@ local msg_table_Swiwin = {
     [-30] = "no data",
 }
 
-local msg_table_JetCat = {
-    -- Running
-    [1]   = "Wait for RPM (Standby / Start)",
-    [2]   = "Ignite",
-    [3]   = "Accelerate",
-    [4]   = "Stabilise",
-    [5]   = "Learn HI",
-    [6]   = "Learn LO",
-    [8]   = "Slow Down",
-    [10]  = "Auto Off",
-    [11]  = "Run (reg.)",
-    [12]  = "Acceleration delay",
-    [13]  = "SpeedReg (Speed Ctrl)",
-    [14]  = "Two-Shaft-Regulate",
-    [15]  = "PreHeat1",
-    [16]  = "PreHeat2",
-    [17]  = "MainFStrt",
-    [19]  = "Keros.FullOn",
-
-    -- Last Shutdown
-    [100] = "No Off-Condition defined",
-    [101] = "Shut down via RC",
-    [102] = "Over temperature",
-    [103] = "Ignition timeout",
-    [104] = "Acceleration time out",
-    [105] = "Acceleration too slow",
-    [106] = "Over RPM",
-    [107] = "Low RPM Off",
-    [108] = "Low Battery",
-    [109] = "Auto Off",
-    [110] = "Low temperature Off",
-    [111] = "Hi Temp Off",
-    [112] = "Glow Plug defective",
-    [113] = "Watch Dog Timer",
-    [114] = "Fail Safe Off",
-    [115] = "Manual Off (via GSU)",
-    [116] = "Power fail (Battery fail)",
-    [117] = "Temp Sensor fail (only during startup)",
-    [118] = "Fuel fail",
-    [119] = "Prop fail (only two shaft engines)",
-    [120] = "2nd engine fail",
-    [121] = "2nd engine differential too high",
-    [122] = "2nd engine no communication",
+local JETCAT_STATE_TEXT = {
+    [0]    = "-OFF-",
+    [1]    = "Stby/START",
+    [2]    = "Ignite...",
+    [3]    = "acceler.",
+    [4]    = "Stabilise",
+    [5]    = "LearnHI",
+    [6]    = "LearnLO",
+    [7]    = "-OFF- Cool",
+    [8]    = "SlowDown",
+    [9]    = "Manual",
+    [10]   = "SwitchOff",
+    [11]   = "RUN (reg.)",
+    [12]   = "AccelrDly",
+    [13]   = "SpeedCtrl",
+    [14]   = "Rpm2Ctrl",
+    [15]   = "PreHeat1",
+    [16]   = "PreHeat2",
+    [17]   = "Bleed-Fuel",
+    [18]   = "---",
+    [19]   = "Keros.FullOn",
+    [20]   = "Auto-Restart",
+    [32]   = "BattryLo",
+    [64]   = "Rpm2Fail",
+    [128]  = "FuelFail",
+    [1000] = "Engine start",
+    [2000] = "LearnLO",
+    [3000] = "RUN (reg.)",
 }
 
+local JETCAT_SHUTDOWN_TEXT = {
+    [0]  = "-----",
+    [1]  = "RcThrOff",
+    [2]  = "OverTemp",
+    [3]  = "IgnTimeO",
+    [4]  = "AccTimeO",
+    [5]  = "Acc.Slow",
+    [6]  = "Over-Rpm",
+    [7]  = "Low-Rpm",
+    [8]  = "BattryLo",
+    [9]  = "Auto-Off",
+    [10] = "Low-EGT",
+    [11] = "HiEgtOff",
+    [12] = "Ignitor!",
+    [13] = "WatchDog",
+    [14] = "FailSafe",
+    [15] = "Manual",
+    [16] = "PowrFail",
+    [17] = "TempFail",
+    [18] = "FuelFail",
+    [19] = "Rpm2Fail",
+    [20] = "2nd EngF",
+    [21] = "2nd Diff",
+    [22] = "2nd-Comm",
+    [23] = "No-OIL",
+    [24] = "OverCurr",
+    [25] = "No Pump!",
+    [26] = "WrongPmp",
+    [27] = "Pump Err",
+    [28] = "No Fuel!",
+    [29] = "LoRpmPmp",
+    [30] = "LowRpmFB",
+    [31] = "!Clutch!",
+    [32] = "EngMatch",
+    [33] = "CAN-TO",
+    [34] = "NoRcPuls",
+    [35] = "RotorBlk",
+    [36] = "Kill Sig",
+    [37] = "ReStartX",
+    [38] = "RcAuxOff",
+    [39] = "RS232Off",
+    [40] = "CAN-Off",
+    [41] = "Test-Off",
+    [42] = "RS232-TO",
+    [43] = "PrHeatTO",
+    [44] = "NoOilPmp",
+    [45] = "OilP Blk",
+    [46] = "OilLevel",
+    [47] = "Kill2Sig",
+    [48] = "Kill3Sig",
+}
+
+local function normalizedJetCatStateCode(value)
+    if type(value) ~= "number" then
+        return nil, false
+    end
+
+    local code = math.floor(value + 0.5)
+
+    if code < 0 then
+        local shutdownCode = math.abs(code)
+
+        if shutdownCode >= 100 then
+            shutdownCode = shutdownCode - 100
+        end
+
+        return shutdownCode, true
+    end
+
+    return code, false
+end
 
 local function getStatusText(ecuType, code)
     if code == nil then
@@ -419,15 +535,22 @@ local function getStatusText(ecuType, code)
     if t == 0 then
         return msg_table_Xicoy[code] or ("Code " .. tostring(code))
     elseif t == 1 then
-        local txt = msg_table_JetCat[code]
-        if txt then
-            if code >= 100 then
-                return "SD: " .. txt
-            else
-                return "Run: " .. txt
-            end
+        local jetcatCode, isShutdown = normalizedJetCatStateCode(code)
+
+        if jetcatCode == nil then
+            return "No data"
         end
-        return "Code " .. tostring(code)
+
+        if isShutdown then
+            local txt = JETCAT_SHUTDOWN_TEXT[jetcatCode]
+            if txt then
+                return "SD: " .. txt
+            end
+            return "SD: Code " .. tostring(jetcatCode)
+        end
+
+        return JETCAT_STATE_TEXT[jetcatCode]
+            or ("Code " .. tostring(jetcatCode))
     elseif t == 2 then
         return msg_table_KingTech[code] or ("Code " .. tostring(code))
     elseif t == 3 then
@@ -446,12 +569,44 @@ end
 -- Helper : lecture robuste d'une Source ETHOS
 -------------------------------------------------------------
 
+local function normalizeTelemetrySource(widget, srcField)
+    local src = widget[srcField]
+
+    if not src then
+        widget._normalizedTelemetrySources[srcField] = nil
+        return nil
+    end
+
+    if not NORMALIZED_TELEMETRY_SOURCE_FIELDS[srcField] then
+        return src
+    end
+
+    if widget._normalizedTelemetrySources[srcField] == src then
+        return src
+    end
+
+    local resolvedSource = src
+    if type(src.name) == "function" and system.getSource then
+        local okName, name = pcall(src.name, src)
+        if okName and type(name) == "string" and name ~= "" then
+            local okSource, source = pcall(system.getSource, name)
+            if okSource and source and type(source.value) == "function" then
+                resolvedSource = source
+                widget[srcField] = source
+            end
+        end
+    end
+
+    widget._normalizedTelemetrySources[srcField] = resolvedSource
+    return resolvedSource
+end
+
 local function readSourceValue(widget, srcField)
     if not widget or not srcField then
         return nil
     end
 
-    local src = widget[srcField]
+    local src = normalizeTelemetrySource(widget, srcField)
     if not src or type(src.value) ~= "function" then
         return nil
     end
@@ -484,6 +639,7 @@ local function readSourceValue(widget, srcField)
     end
 
     widget[srcField] = recoveredSource
+    widget._normalizedTelemetrySources[srcField] = recoveredSource
     local okRecoveredValue, recoveredValue = pcall(recoveredSource.value, recoveredSource)
     if okRecoveredValue then
         return recoveredValue
@@ -564,23 +720,6 @@ local function sourceUnit(src)
     u = u:gsub("^%s+", ""):gsub("%s+$", "")
     if u == "" then return nil end
     return u
-end
-
-local function appendUnit(text, src)
-    if not text or text == "--" or text == "" or not src then return text end
-    if type(src.stringUnit) == "function" then
-        local okUnit, u = pcall(src.stringUnit, src)
-        if not okUnit then
-            return text
-        end
-        if type(u) == "string" then
-            u = u:gsub("^%s+", ""):gsub("%s+$", "")
-            if u ~= "" then
-                return text .. u
-            end
-        end
-    end
-    return text
 end
 
 local function fmtTimeMMSS(v)
@@ -688,6 +827,20 @@ local enjetAppIds = {
     { field = "pressSource",           appId = 0x0208 },
 }
 
+local jetcatEngine1AppIds = {
+    { field = "rpmSource",           name = "EngRpm1",      appId = 0x0500 },
+    { field = "temp1Source",         name = "EngEgt1",      appId = 0x0400 },
+    { field = "adc4Source",          name = "EngPumpV1",    appId = 0x5001 },
+    { field = "adc3Source",          name = "EngEcuV1",     appId = 0x0210 },
+    { field = "engineCurrentSource", name = "EngCurrent1",  appId = 0x0200, fallbackAppId = 0x5002 },
+    { field = "fuelSource",          name = "EngFuel1",     appId = 0x0600 },
+    { field = "fuelFlowSource",      name = "EngFuelFlow1", appId = 0x5006 },
+    { field = "altSource",           name = "EngAlt1",      appId = 0x5000 },
+    { field = "battUsedSource",      name = "EngBattCap1",  appId = 0x5003 },
+    { field = "heliTpRpmSource",     name = "EngShaftRpm1", appId = 0x500A },
+    { field = "temp2Source",         name = "EngState1",    appId = 0x5004 },
+}
+
 local function isUsableSource(src)
     return src and (type(src.name) == "function" or type(src.value) == "function")
 end
@@ -727,12 +880,23 @@ local function safeSportGetSensorByAppId(appId)
     return nil
 end
 
+local function safeGetTelemetrySourceByName(name)
+    if type(name) ~= "string" or name == "" or not system.getSource then
+        return nil
+    end
+
+    local okSource, source = pcall(system.getSource, name)
+    if okSource and isUsableSource(source) then
+        return source
+    end
+
+    return nil
+end
+
 local function autoBindXicoyProHub(widget)
     if widget.ecuType ~= 0 then
         widget._autoBindStatus = "Auto-bind: Xicoy only"
-        if lcd.invalidate then
-            lcd.invalidate()
-        end
+        lcd.invalidate()
         return
     end
 
@@ -761,17 +925,41 @@ local function autoBindXicoyProHub(widget)
         widget._autoBindStatus = "Auto-bind: no mapping"
     end
 
-    if lcd.invalidate then
-        lcd.invalidate()
+    lcd.invalidate()
+end
+
+local function autoBindJetCatEngine1(widget)
+    if widget.ecuType ~= 1 then
+        widget._autoBindStatus = "Auto-bind: JetCat only"
+        return
     end
+
+    local total = #jetcatEngine1AppIds
+    local bound = 0
+    for _, item in ipairs(jetcatEngine1AppIds) do
+        local sensor = safeGetTelemetrySourceByName(item.name)
+        if not sensor then
+            sensor = safeSportGetSensorByAppId(item.appId)
+        end
+        if not sensor and item.fallbackAppId then
+            sensor = safeSportGetSensorByAppId(item.fallbackAppId)
+        end
+        if sensor then
+            widget[item.field] = sensor
+            bound = bound + 1
+        end
+    end
+
+    widget._autoBindStatus = "Auto-bind JetCat E1: "
+        .. tostring(bound) .. "/" .. tostring(total) .. " sensors"
+
+    lcd.invalidate()
 end
 
 local function autoBindEnjetDTA(widget)
     if widget.ecuType ~= 5 then
         widget._autoBindStatus = "Auto-bind unavailable for selected ECU"
-        if lcd.invalidate then
-            lcd.invalidate()
-        end
+        lcd.invalidate()
         return
     end
 
@@ -791,21 +979,19 @@ local function autoBindEnjetDTA(widget)
     widget._autoBindStatus = "Auto-bind ENJET: "
         .. tostring(bound) .. "/" .. tostring(total) .. " sensors"
 
-    if lcd.invalidate then
-        lcd.invalidate()
-    end
+    lcd.invalidate()
 end
 
 local function autoBindSelectedEcu(widget)
     if widget.ecuType == 0 then
         autoBindXicoyProHub(widget)
+    elseif widget.ecuType == 1 then
+        autoBindJetCatEngine1(widget)
     elseif widget.ecuType == 5 then
         autoBindEnjetDTA(widget)
     else
         widget._autoBindStatus = "Auto-bind unavailable for selected ECU"
-        if lcd.invalidate then
-            lcd.invalidate()
-        end
+        lcd.invalidate()
     end
 end
 
@@ -929,7 +1115,7 @@ local function updateFuel(widget)
             system.playHaptic(500)
         end
         playConfiguredAudio(widget.fuelCriticalAlertFile)
-        if system.playNumber and UNIT_PERCENT then
+        if UNIT_PERCENT then
             system.playNumber(math.floor(percent + 0.5), UNIT_PERCENT, 0)
         end
         return fuelChanged
@@ -937,7 +1123,7 @@ local function updateFuel(widget)
 
     if crossedRed then
         playConfiguredAudio(widget.fuelLevelCalloutFile)
-        if system.playNumber and UNIT_PERCENT then
+        if UNIT_PERCENT then
             system.playNumber(FUEL_RED_THRESHOLD, UNIT_PERCENT, 0)
         end
         return fuelChanged
@@ -950,7 +1136,7 @@ local function updateFuel(widget)
             system.playHaptic(300)
         end
         playConfiguredAudio(widget.fuelAlertFile)
-        if system.playNumber and UNIT_PERCENT then
+        if UNIT_PERCENT then
             system.playNumber(math.floor(percent + 0.5), UNIT_PERCENT, 0)
         end
         return fuelChanged
@@ -958,7 +1144,7 @@ local function updateFuel(widget)
 
     if crossedYellow then
         playConfiguredAudio(widget.fuelLevelCalloutFile)
-        if system.playNumber and UNIT_PERCENT then
+        if UNIT_PERCENT then
             system.playNumber(FUEL_YELLOW_THRESHOLD, UNIT_PERCENT, 0)
         end
         return fuelChanged
@@ -969,60 +1155,115 @@ end
 
 -- Alarmes d’événements Xicoy : FlameOut et Restart
 local function updateFlameOutAlarm(widget)
-    if (widget.ecuType or 0) ~= 0 then
+    local ecuType = widget.ecuType or 0
+
+    if ecuType == 0 then
+        local rawCode = widget.temp2Value
+        if type(rawCode) ~= "number" then
+            return
+        end
+
+        local code = math.floor(rawCode + 0.5)
+
+        -- Arm only after a confirmed running state.
+        if code == 7 or code == 33 or code == 34 then
+            widget._flameOutArmed = true
+            widget._restartArmed = true
+        end
+
+        -- Trigger once on the transition to FlameOut.
+        if widget._flameOutArmed
+            and code == 9
+            and widget._lastEcuStatus ~= 9 then
+
+            widget._flameOutArmed = false
+
+            if system.playHaptic then
+                system.playHaptic(1000)
+            end
+
+            playConfiguredAudio(widget.flameOutAlertFile)
+        end
+
+        if widget._restartArmed
+            and code == 35
+            and widget._lastEcuStatus ~= 35 then
+
+            widget._restartArmed = false
+
+            if system.playHaptic then
+                system.playHaptic(500)
+            end
+
+            playConfiguredAudio(widget.restartAlertFile)
+        end
+
+        -- Normal stops disarm without alarm.
+        if code == 8 or code == 16 then
+            widget._flameOutArmed = false
+            widget._restartArmed = false
+        end
+
+        widget._lastEcuStatus = code
+        return
+    elseif ecuType == 1 then
+        local code, isShutdown = normalizedJetCatStateCode(widget.temp2Value)
+        if code == nil then
+            return
+        end
+
+        local stateKey = (isShutdown and "S" or "R") .. tostring(code)
+
+        if isShutdown then
+            widget._flameOutArmed = false
+            widget._lastEcuStatus = stateKey
+            return
+        end
+
+        if code == 11 or code == 3000 then
+            widget._flameOutArmed = true
+            widget._restartArmed = true
+        end
+
+        if widget._flameOutArmed
+            and code == 0
+            and widget._lastEcuStatus ~= "R0" then
+
+            widget._flameOutArmed = false
+
+            if system.playHaptic then
+                system.playHaptic(1000)
+            end
+
+            playConfiguredAudio(widget.flameOutAlertFile)
+        end
+
+        if widget._restartArmed
+            and code == 20
+            and widget._lastEcuStatus ~= "R20" then
+
+            widget._restartArmed = false
+
+            if system.playHaptic then
+                system.playHaptic(500)
+            end
+
+            playConfiguredAudio(widget.restartAlertFile)
+        end
+
+        if code == 7 or code == 8 or code == 10 then
+            widget._flameOutArmed = false
+            widget._restartArmed = false
+        end
+
+        widget._lastEcuStatus = stateKey
+        return
+    else
         widget._flameOutArmed = false
         widget._restartArmed = false
         widget._lastEcuStatus = nil
         return
     end
-
-    local rawCode = widget.temp2Value
-    if type(rawCode) ~= "number" then
-        return
-    end
-
-    local code = math.floor(rawCode + 0.5)
-
-    -- Arm only after a confirmed running state.
-    if code == 7 or code == 33 or code == 34 then
-        widget._flameOutArmed = true
-        widget._restartArmed = true
-    end
-
-    -- Trigger once on the transition to FlameOut.
-    if widget._flameOutArmed
-        and code == 9
-        and widget._lastEcuStatus ~= 9 then
-
-        widget._flameOutArmed = false
-
-        if system.playHaptic then
-            system.playHaptic(1000)
-        end
-
-        playConfiguredAudio(widget.flameOutAlertFile)
-    end
-
-    if widget._restartArmed
-        and code == 35
-        and widget._lastEcuStatus ~= 35 then
-
-        widget._restartArmed = false
-
-        if system.playHaptic then
-            system.playHaptic(500)
-        end
-
-        playConfiguredAudio(widget.restartAlertFile)
-    end
-
-    -- Normal stops disarm without alarm.
-    if code == 8 or code == 16 then
-        widget._flameOutArmed = false
-        widget._restartArmed = false
-    end
-
-    widget._lastEcuStatus = code
 end
 
 
@@ -1030,51 +1271,39 @@ end
 -- Helpers graphiques
 -------------------------------------------------------------
 
-local function getGrey(level)
-    if lcd.GREY then
-        return lcd.GREY(level)
-    end
-    if lcd.RGB then
-        return lcd.RGB(level, level, level)
-    end
-    return 0
-end
-
-
-local function getWhite()
-    if lcd.RGB then
-        return lcd.RGB(255, 255, 255)
-    end
-    return getGrey(31)
-end
-local function getWarnColor()
-    if lcd.RGB then
-        return lcd.RGB(255, 180, 0)
-    end
-    return getGrey(24)
-end
-
 -- Palette de couleurs selon le thème
+local function resolveSafeColor(fallback)
+    if SAFE_COLOR ~= nil then
+        return SAFE_COLOR
+    end
+    if THEME_SAFE_COLOR ~= nil then
+        return lcd.themeColor(THEME_SAFE_COLOR)
+    end
+    return fallback
+end
+
+local function resolveErrorColor(fallback)
+    if ERROR_COLOR ~= nil then
+        return ERROR_COLOR
+    end
+    if THEME_ERROR_COLOR ~= nil then
+        return lcd.themeColor(THEME_ERROR_COLOR)
+    end
+    return fallback
+end
+
 local function getPalette(theme)
     if theme == nil then theme = 0 end
 
     -- Écran N&B : on ignore le thème et on reste simple
-    if lcd.GREY and not lcd.RGB then
-        return {
-            bgColor      = getGrey(0),
-            gaugeColor   = getGrey(15),
-            alertColor   = getGrey(30),
-            bgGaugeColor = getGrey(10),
-            textColor    = getGrey(31),
-        }
-    end
-
     -- Thème 0 : vert Corsica Fly Dream
     if theme == 0 then
         return {
             bgColor      = lcd.RGB(0, 0, 0),
             gaugeColor   = lcd.RGB(0, 160, 0),
             alertColor   = lcd.RGB(255, 0, 0),
+            safeColor    = resolveSafeColor(lcd.RGB(0, 160, 0)),
+            criticalColor = resolveErrorColor(lcd.RGB(255, 0, 0)),
             bgGaugeColor = lcd.RGB(60, 60, 60),
             textColor    = lcd.RGB(255, 255, 255),
         }
@@ -1086,6 +1315,8 @@ local function getPalette(theme)
             bgColor      = lcd.RGB(0, 0, 0),
             gaugeColor   = lcd.RGB(0, 220, 255),
             alertColor   = lcd.RGB(255, 80, 120),
+            safeColor    = resolveSafeColor(lcd.RGB(0, 220, 255)),
+            criticalColor = resolveErrorColor(lcd.RGB(255, 80, 120)),
             bgGaugeColor = lcd.RGB(40, 40, 60),
             textColor    = lcd.RGB(255, 255, 255),
         }
@@ -1097,6 +1328,8 @@ local function getPalette(theme)
             bgColor      = lcd.RGB(0, 0, 0),
             gaugeColor   = lcd.RGB(255, 180, 0),
             alertColor   = lcd.RGB(255, 80, 0),
+            safeColor    = resolveSafeColor(lcd.RGB(255, 180, 0)),
+            criticalColor = resolveErrorColor(lcd.RGB(255, 80, 0)),
             bgGaugeColor = lcd.RGB(60, 30, 0),
             textColor    = lcd.RGB(255, 230, 200),
         }
@@ -1107,835 +1340,12 @@ local function getPalette(theme)
         bgColor      = lcd.RGB(0, 0, 0),
         gaugeColor   = lcd.RGB(0, 160, 0),
         alertColor   = lcd.RGB(255, 0, 0),
+        safeColor    = resolveSafeColor(lcd.RGB(0, 160, 0)),
+        criticalColor = resolveErrorColor(lcd.RGB(255, 0, 0)),
         bgGaugeColor = lcd.RGB(60, 60, 60),
         textColor    = lcd.RGB(255, 255, 255),
     }
 end
-
--- Jauge simple (fond + une seule couleur)
-local function drawArcGauge(cx, cy, innerR, outerR, startAngle, endAngle, percent, colorActive, colorBg)
-    if percent == nil then percent = 0 end
-    if percent < 0 then percent = 0 elseif percent > 100 then percent = 100 end
-
-    if lcd.drawAnnulusSector == nil then
-        lcd.color(colorBg)
-        lcd.drawCircle(cx, cy, outerR)
-        lcd.drawCircle(cx, cy, innerR)
-        return
-    end
-
-    lcd.color(colorBg)
-    lcd.drawAnnulusSector(cx, cy, innerR, outerR, startAngle, endAngle)
-
-    local sweep     = endAngle - startAngle
-    local activeEnd = startAngle + sweep * percent / 100
-
-    lcd.color(colorActive)
-    lcd.drawAnnulusSector(cx, cy, innerR, outerR, startAngle, activeEnd)
-end
-
--------------------------------------------------------------
--- Affichage : mise en page GRAF avec valeurs réelles
--------------------------------------------------------------
-
-
--------------------------------------------------------------
--- Dashboard : première étape "objects" inspirée DashX
--- (pour l'instant : RPM, EGT, Pump Volt, Fuel)
--------------------------------------------------------------
-
-local dashboardObjects = {
-    { id = "fuel", kind = "bar",     label = "CARBURANT" },
-    { id = "rpm",  kind = "arcBand", label = "RPM" },
-    { id = "egt",  kind = "arcBand", label = "EGT" },
-    { id = "pump", kind = "arc",     label = "PUMP" },
-}
-
--- Rendu des jauges défini par dashboardObjects.
--- ctx contient : w, h, margin, couleurs, géométrie (cxRight, etc.) et valeurs (rpmPercent, texte...)
--- Jauge a zones progressives sur une plage 0..maxPercent contenue dans l'arc demande.
-local function drawArcGaugeZones(cx, cy, innerR, outerR, startAngle, endAngle,
-                                 percent, warnStartPercent, alertStartPercent, maxPercent,
-                                 colorNormal, colorWarn, colorAlert, colorBg)
-    if percent == nil then percent = 0 end
-    if maxPercent == nil or maxPercent <= 0 then maxPercent = 100 end
-    if percent < 0 then percent = 0 elseif percent > maxPercent then percent = maxPercent end
-
-    if lcd.drawAnnulusSector == nil then
-        lcd.color(colorBg)
-        lcd.drawCircle(cx, cy, outerR)
-        lcd.drawCircle(cx, cy, innerR)
-        return
-    end
-
-    local sweep = endAngle - startAngle
-    local function angleFor(p)
-        return startAngle + sweep * p / maxPercent
-    end
-
-    lcd.color(colorBg)
-    lcd.drawAnnulusSector(cx, cy, innerR, outerR, startAngle, endAngle)
-
-    if percent <= 0 then return end
-
-    local zones = {
-        { from = 0,                 to = warnStartPercent,  color = colorNormal },
-        { from = warnStartPercent,  to = alertStartPercent, color = colorWarn },
-        { from = alertStartPercent, to = maxPercent,        color = colorAlert },
-    }
-
-    for _, zone in ipairs(zones) do
-        local zoneEnd = math.min(percent, zone.to)
-        if zoneEnd > zone.from then
-            lcd.color(zone.color)
-            lcd.drawAnnulusSector(cx, cy, innerR, outerR, angleFor(zone.from), angleFor(zoneEnd))
-        end
-    end
-end
-
-local function renderDashboard(widget, ctx)
-    for _, o in ipairs(dashboardObjects) do
-        if o.id == "rpm" and o.kind == "arcBand" then
-            -- RPM : demi-jauge haut droite
-            drawArcGaugeZones(
-                ctx.cxRight, ctx.cyTop,
-                ctx.innerBig, ctx.radiusBig,
-                270, 450,
-                ctx.rpmPercent or 0,
-                80, 100, 110,
-                ctx.gaugeColor, getWarnColor(), ctx.alertColor, ctx.bgGaugeColor
-            )
-
-            -- Valeur réelle + label
-            local rpmText = ctx.rpmText or "--"
-            lcd.color(ctx.gaugeColor)
-            lcd.font(FONT_XXL)
-            local tw, th = lcd.getTextSize(rpmText)
-            local rpmValueY = ctx.cyTop - th - 27  -- ajusté pour cohérence verticale
-            lcd.drawText(ctx.cxRight - tw / 2, rpmValueY, rpmText, 0)
-
-            lcd.color(ctx.textColor)
-            lcd.font(FONT_L)
-            local label = o.label or "RPM"
-            local lw = lcd.getTextSize(label)
-            local rpmLabelY = rpmValueY + th + 2
-            lcd.drawText(ctx.cxRight - lw / 2, rpmLabelY, label, 0)
-
-        elseif o.id == "egt" and o.kind == "arcBand" then
-            -- EGT : demi-jauge bas droite
-            local percent = ctx.egtPercent or 0
-            local alertStartPercent = ctx.egtBandStartPercent or 100
-            local warnStartPercent = alertStartPercent * 0.85
-
-            if warnStartPercent < 0 then
-                warnStartPercent = 0
-            end
-
-            if warnStartPercent > alertStartPercent then
-                warnStartPercent = alertStartPercent
-            end
-
-            drawArcGaugeZones(
-                ctx.cxRight, ctx.cyBottom,
-                ctx.innerBig, ctx.radiusBig,
-                270, 450,
-                percent,
-                warnStartPercent,
-                alertStartPercent,
-                110,
-                ctx.gaugeColor,
-                getWarnColor(),
-                ctx.alertColor,
-                ctx.bgGaugeColor
-            )
-
-            local egtText = ctx.egtText or "--"
-            lcd.color(ctx.gaugeColor)
-            lcd.font(FONT_XXL)
-            local tw, th = lcd.getTextSize(egtText)
-            local egtValueY = ctx.cyBottom - th - 27  -- ajusté pour cohérence verticale
-            lcd.drawText(ctx.cxRight - tw / 2, egtValueY, egtText, 0)
-
-            lcd.color(ctx.textColor)
-            lcd.font(FONT_L)
-            local label = o.label or "EGT"
-            local lw = lcd.getTextSize(label)
-            local egtLabelY = egtValueY + th + 2
-            lcd.drawText(ctx.cxRight - lw / 2, egtLabelY, label, 0)
-
-
-        elseif o.id == "pump" and o.kind == "arc" then
-            -- PUMP : anneau à gauche
-            local innerR = ctx.radiusSmall - ctx.thicknessSmall
-            local outerR = ctx.radiusSmall
-            local percent = ctx.pumpPercent or 0
-
-            drawArcGauge(
-                ctx.cxLeft, ctx.cyLeft,
-                innerR, outerR,
-                0, 360,
-                percent,
-                ctx.gaugeColor, ctx.bgGaugeColor
-            )
-
-            -- valeur au centre
-            local pumpText = ctx.pumpText or "--"
-            lcd.color(ctx.gaugeColor)
-            lcd.font(FONT_L)
-            local tw, th = lcd.getTextSize(pumpText)
-            local valueY = ctx.cyLeft - th
-            lcd.drawText(ctx.cxLeft - tw / 2, valueY, pumpText, 0)
-
-            -- label "PUMP" sous la valeur, à l'intérieur du cercle
-            lcd.color(ctx.textColor)
-            lcd.font(FONT_STD)
-            local label = o.label or "PUMP"
-            local lw = lcd.getTextSize(label)
-            lcd.drawText(
-                ctx.cxLeft - lw / 2,
-                valueY + th,
-                label,
-                0
-            )
-
-        elseif o.id == "fuel" and o.kind == "bar" then
-            -- Jauge carburant (barre en bas, auto-scale)
-            -- On tient compte de la hauteur et de la largeur du widget
-            local baseH, baseW = 272, 480
-            local scaleH       = ctx.h / baseH
-            local scaleW       = ctx.w / baseW
-            if scaleH < 0.3 then scaleH = 0.3 end
-            if scaleW < 0.3 then scaleW = 0.3 end
-            local scale        = math.min(scaleH, scaleW)
-
-            local fuelBarHeight = math.max(6, math.floor(18 * scale))
-            local fuelBarW      = math.max(40, ctx.w - 2 * ctx.margin)
-            local fuelBarX      = ctx.margin
-            local fuelBarY      = ctx.h - fuelBarHeight - ctx.margin
-
-            -- Titre
-            lcd.color(ctx.textColor)
-            lcd.font(FONT_STD)
-            local label = o.label or "CARBURANT"
-            local lw, lh = lcd.getTextSize(label)
-            lcd.drawText(fuelBarX, fuelBarY - lh - 2, label, 0)
-
-            -- Fond
-            lcd.color(getGrey(150))
-            lcd.drawFilledRectangle(fuelBarX, fuelBarY, fuelBarW, fuelBarHeight)
-
-            -- Remplissage selon %
-            local p = ctx.fuelPercent
-            if p and p > 0 then
-                if p <= FUEL_RED_THRESHOLD and lcd.RGB then
-                    lcd.color(lcd.RGB(255, 0, 0))
-                elseif p <= FUEL_YELLOW_THRESHOLD and lcd.RGB then
-                    lcd.color(lcd.RGB(255,255,0))
-                else
-                    lcd.color(ctx.gaugeColor)
-                end
-                local fuelFillW = math.floor(fuelBarW * p / 100)
-                lcd.drawFilledRectangle(fuelBarX, fuelBarY, fuelFillW, fuelBarHeight)
-            end
-
-            -- Texte valeur réelle centré
-            local fuelText = ctx.fuelText or "--"
-            lcd.color(getWhite())
-            lcd.font(FONT_STD)
-            local tw, th = lcd.getTextSize(fuelText)
-            lcd.drawText(
-                fuelBarX + (fuelBarW - tw) / 2,
-                fuelBarY + (fuelBarHeight - th) / 2,
-                fuelText, 0
-            )
-        end
-    end
-end
-
-local function paintLegacy(widget)
-    local w, h = lcd.getWindowSize()
-
-    -- Palette de couleurs selon le thème
-    local palette      = getPalette(widget.theme or 0)
-    local gaugeColor   = palette.gaugeColor
-    local alertColor   = palette.alertColor
-    local bgGaugeColor = palette.bgGaugeColor
-    local textColor    = palette.textColor
-
-    -- Fond du widget
-    lcd.color(palette.bgColor)
-    lcd.drawFilledRectangle(0, 0, w, h)
-    local margin       = 8
-
-    --------------------------------------------------------
-    -- Conversion des données télémétrie
-    --------------------------------------------------------
-
-    -- Chrono (secondes -> mm:ss)
-    local chronoText = "--:--"
-    if type(widget.chronoValue) == "number" then
-        local total = math.floor(math.abs(widget.chronoValue))
-        local m = math.floor(total / 60)
-        local s = total % 60
-        chronoText = string.format("%d:%02d", m, s)
-        if widget.chronoValue < 0 then
-            chronoText = "-" .. chronoText
-        end
-    end
-
-    -- Status ECU via Temp2
-    local statusText = getStatusText(widget.ecuType, widget.temp2Value)
-
-    -- Valeurs réelles
-    local rpmValue         = (type(widget.rpmValue)   == "number") and widget.rpmValue   or nil
-    local egtValue         = (type(widget.temp1Value) == "number") and widget.temp1Value or nil
-    local pumpRawValue     = (type(widget.adc4Value)  == "number") and widget.adc4Value  or nil
-    if pumpRawValue ~= pumpRawValue then
-        pumpRawValue = nil
-    end
-    local pumpDisplayValue = decodePumpDisplayValue(widget.ecuType, pumpRawValue)
-    local fuelValue        = (type(widget.fuelValue)  == "number") and widget.fuelValue  or nil
-    local fuelDisplayValue = fuelValue
-    if widget.ecuType == 0 or widget.ecuType == 5 then
-        fuelDisplayValue = (type(widget._fuelDisplayValue) == "number") and widget._fuelDisplayValue or nil
-    end
-
-    -- RPM : zone rouge >100% jusqu'à 110%
-    -- Sécuriser rpmMax : si valeur absurde (nil ou <= 0), on repasse à 160000 par défaut
-    local rpmMax = widget.rpmMax or 160000
-    if rpmMax <= 0 then
-        rpmMax = 160000
-        widget.rpmMax = rpmMax
-    end
-
-    local rpmPercentRaw = mapToPercentRaw(rpmValue, rpmMax)
-    local rpmPercent    = nil
-    if rpmPercentRaw then
-        if rpmPercentRaw < 0 then
-            rpmPercent = 0
-        elseif rpmPercentRaw > 110 then
-            rpmPercent = 110
-        else
-            rpmPercent = rpmPercentRaw
-        end
-    end
-
-    -- EGT : valeur réelle en °C, échelle 0..100%% de 0 à egtMax, bande rouge > ~700°C
-    local egtPercent = nil
-    local egtBandStartPercent = nil
-
-    -- Sécuriser egtMax : si valeur absurde (nil ou trop basse), on repasse à 700°C par défaut
-    local egtMax = widget.egtMax or 700
-    if egtMax < 200 then
-        egtMax = 700
-        widget.egtMax = egtMax
-    end
-
-    local egtPercentRaw = mapToPercentRaw(egtValue, egtMax)
-    if egtPercentRaw then
-        if egtPercentRaw < 0 then
-            egtPercent = 0
-        elseif egtPercentRaw > 110 then
-            egtPercent = 110
-        else
-            egtPercent = egtPercentRaw
-        end
-    end
-
-    if egtMax and egtMax > 0 then
-        local raw = 700 * 100 / egtMax
-        if raw < 0 then raw = 0 end
-        if raw > 100 then raw = 100 end
-        egtBandStartPercent = raw
-    end
-
-    -- Pump et Fuel : % internes classiques
-    local pumpScaleMax = widget.pumpMax or 0
-    if widget.ecuType == 0 then
-        pumpScaleMax = XICOY_PUMP_RAW_MAX
-    end
-
-    local pumpPercent = clamp01(mapToPercentRaw(pumpRawValue, pumpScaleMax))
-    local fuelPercent = clamp01(widget._fuelPercent)
-
-    -- Texte affiché = VALEURS RÉELLES (sans %)
-    local rpmText  = rpmValue  and string.format("%d", math.floor(rpmValue + 0.5))   or "--"
-    local egtText  = egtValue  and string.format("%d", math.floor(egtValue + 0.5))   or "--"
-    local pumpText = pumpDisplayValue and string.format("%d", math.floor(pumpDisplayValue + 0.5))  or "--"
-    local fuelText = fuelDisplayValue and string.format("%d", math.floor(fuelDisplayValue + 0.5))  or "--"
-    if widget.ecuType == 5 and fuelDisplayValue then
-        fuelText = fuelText .. " ml"
-    end
-
-    -- RSSI & RxBatt texte
-    local rssi1Label, rssi1Value = nil, nil
-    if widget.rssi1Source then
-        rssi1Label = "RSSI 2.4G :"
-        if type(widget.rssi1Value) == "number" then
-            rssi1Value = string.format("%d%%", math.floor(widget.rssi1Value + 0.5))
-        else
-            rssi1Value = "--"
-        end
-    end
-
-    local rssi2Label, rssi2Value = nil, nil
-    if widget.rssi2Source then
-        rssi2Label = "RSSI 900M :"
-        if type(widget.rssi2Value) == "number" then
-            rssi2Value = string.format("%d%%", math.floor(widget.rssi2Value + 0.5))
-        else
-            rssi2Value = "--"
-        end
-    end
-
-    local ecuVLabel, ecuVValue = nil, nil
-    if widget.adc3Source then
-        ecuVLabel = "ECU V :"
-        if type(widget.adc3Value) == "number" then
-            ecuVValue = string.format("%.1fV", widget.adc3Value)
-        else
-            ecuVValue = "--"
-        end
-    end
-
-    local rxBattLabel, rxBattValue = nil, nil
-    if widget.rxbattSource then
-        rxBattLabel = "Rx Batt :"
-        if type(widget.rxbattValue) == "number" then
-            rxBattValue = string.format("%.1fV", widget.rxbattValue)
-        else
-            rxBattValue = "--"
-        end
-    end
-
-	-- Ajout des unités pour les capteurs DIY (affichage colonne gauche)
-    -- DIY1 / DIY2 / DIY3 texte (affichés dans la colonne de gauche)
-    local diy1Label, diy1Text = nil, nil
-    if widget.diy1Source then
-        diy1Label = "DIY1 :"
-        if type(widget.diy1Value) == "number" then
-			diy1Text = appendUnit(string.format("%.1f", widget.diy1Value), widget.diy1Source)
-        else
-            diy1Text = "--"
-        end
-    end
-
-    local diy2Label, diy2Text = nil, nil
-    if widget.diy2Source then
-        diy2Label = "DIY2 :"
-        if type(widget.diy2Value) == "number" then
-			diy2Text = appendUnit(string.format("%.1f", widget.diy2Value), widget.diy2Source)
-        else
-            diy2Text = "--"
-        end
-    end
-
-    local diy3Label, diy3Text = nil, nil
-    if widget.diy3Source then
-        diy3Label = "DIY3 :"
-        if type(widget.diy3Value) == "number" then
-			diy3Text = appendUnit(string.format("%.1f", widget.diy3Value), widget.diy3Source)
-        else
-            diy3Text = "--"
-        end
-    end
-
-    --------------------------------------------------------
-    -- GÉOMÉTRIE GÉNÉRALE
-    --------------------------------------------------------
-    local gaugeShiftX = 30
-    local cxRight   = math.floor(w * 0.70 + gaugeShiftX)
-    local offsetY   = 30
-
-    -- RPM : arc haut
-    local cyTopBase = h * 0.38 + offsetY
-    local cyTop     = math.floor(cyTopBase - 15)
-
-    -- EGT : arc bas (remontée de 10 px)
-    local cyBottom  = math.floor(h * 0.78 + offsetY - 10)
-
-    local radiusBig      = math.floor(math.min(w, h) * 0.38)
-    local thicknessBig   = math.floor(radiusBig * 0.075)
-    local innerBig       = radiusBig - thicknessBig
-
-    -- Clamp to keep right gauges inside the widget area
-    if cxRight + radiusBig + margin > w then
-        cxRight = w - radiusBig - margin
-    end
-    if cxRight < radiusBig + margin then
-        cxRight = radiusBig + margin
-    end
-
-    -- Pump Volt : descendue de 30 px et décalée vers la droite pour libérer la colonne texte
-    local pumpShiftX     = 30  -- +30 px vers les arcs de cercle (droite)
-    local cxLeft         = math.floor(w * 0.24 + 40 + gaugeShiftX + pumpShiftX)
-    local cyLeft         = math.floor(h * 0.45 + 30)
-    local radiusSmall    = math.floor(math.min(w, h) * 0.22)
-    local thicknessSmall = math.floor(radiusSmall * 0.075)
-
-    -- Clamp to keep left gauge inside the widget area
-    if cxLeft + radiusSmall + margin > w then
-        cxLeft = w - radiusSmall - margin
-    end
-    if cxLeft < radiusSmall + margin then
-        cxLeft = radiusSmall + margin
-    end
-
-    --------------------------------------------------------
-    -- 1) CHRONO (haut gauche)
-    --------------------------------------------------------
-    local chronoX = margin
-    local chronoY = 2
-
-    lcd.color(textColor)
-    lcd.font(FONT_XXL)
-    local _, th = lcd.getTextSize(chronoText)
-    lcd.drawText(chronoX, chronoY, chronoText, 0)
-
-    local chronoBottomY = chronoY + th
-
-    --------------------------------------------------------
-    -- 2) STATUS ECU sous le chrono
-    --------------------------------------------------------
-    local statusX = margin
-    local statusY = chronoBottomY + 2
-
-    lcd.font(FONT_L)
-    local statusLabel = "STATUS ECU : "
-    local statusLine = statusLabel .. statusText
-    local _, lh = lcd.getTextSize(statusLine)
-
-    -- Label en blanc, valeur de statut en vert
-    lcd.color(textColor)
-    lcd.drawText(statusX, statusY, statusLabel, 0)
-
-    local labelW = lcd.getTextSize(statusLabel)
-    lcd.color(gaugeColor)
-    lcd.drawText(statusX + labelW, statusY, statusText or "", 0)
-
-    local statusBottomY = statusY + lh
-
-    --------------------------------------------------------
-    -- 3) RSSI 2.4 / 900 + Rx Batt
-    --------------------------------------------------------
-    local lineGap   = 3
-    local lineH     = 16
-    local yText     = statusBottomY + lineGap
-
-    lcd.font(FONT_STD)
-    if rssi1Label then
-        lcd.color(textColor)
-        lcd.drawText(statusX, yText, rssi1Label, 0)
-        local lw1 = lcd.getTextSize(rssi1Label)
-        lcd.color(gaugeColor)
-        lcd.drawText(statusX + lw1 + 5, yText, rssi1Value or "", 0)
-        yText = yText + lineH + lineGap
-    end
-    if rssi2Label then
-        lcd.color(textColor)
-        lcd.drawText(statusX, yText, rssi2Label, 0)
-        local lw2 = lcd.getTextSize(rssi2Label)
-        lcd.color(gaugeColor)
-        lcd.drawText(statusX + lw2 + 5, yText, rssi2Value or "", 0)
-        yText = yText + lineH + lineGap
-    end
-    if rxBattLabel then
-        lcd.color(textColor)
-        lcd.drawText(statusX, yText, rxBattLabel, 0)
-        local lw3 = lcd.getTextSize(rxBattLabel)
-        lcd.color(gaugeColor)
-        lcd.drawText(statusX + lw3 + 5, yText, rxBattValue or "", 0)
-        yText = yText + lineH + lineGap
-    end
-    if ecuVLabel then
-        lcd.color(textColor)
-        lcd.drawText(statusX, yText, ecuVLabel, 0)
-        local lwE = lcd.getTextSize(ecuVLabel)
-        lcd.color(gaugeColor)
-        lcd.drawText(statusX + lwE + 5, yText, ecuVValue or "", 0)
-        yText = yText + lineH + lineGap
-    end
-
-    -- DIY1 / DIY2 / DIY3 sur la colonne de gauche (sous RxBatt / RSSI)
-    if diy1Label then
-        lcd.color(textColor)
-        lcd.drawText(statusX, yText, diy1Label, 0)
-        local lw4 = lcd.getTextSize(diy1Label)
-        lcd.color(gaugeColor)
-        lcd.drawText(statusX + lw4 + 5, yText, diy1Text or "", 0)
-        yText = yText + lineH + lineGap
-    end
-    if diy2Label then
-        lcd.color(textColor)
-        lcd.drawText(statusX, yText, diy2Label, 0)
-        local lw5 = lcd.getTextSize(diy2Label)
-        lcd.color(gaugeColor)
-        lcd.drawText(statusX + lw5 + 5, yText, diy2Text or "", 0)
-        yText = yText + lineH + lineGap
-    end
-    if diy3Label then
-        lcd.color(textColor)
-        lcd.drawText(statusX, yText, diy3Label, 0)
-        local lw6 = lcd.getTextSize(diy3Label)
-        lcd.color(gaugeColor)
-        lcd.drawText(statusX + lw6 + 5, yText, diy3Text or "", 0)
-        yText = yText + lineH + lineGap
-    end
-    if widget.heliTpRpmSource and (yText + lineH) <= (h - margin - 2) then
-        local heliLabel = "Heli RPM :"
-        local heliText = "--"
-        if type(widget.heliTpRpmValue) == "number" then
-            heliText = string.format("%d", math.floor(widget.heliTpRpmValue + 0.5))
-        end
-        lcd.color(textColor)
-        lcd.drawText(statusX, yText, heliLabel, 0)
-        local lwHeli = lcd.getTextSize(heliLabel)
-        lcd.color(gaugeColor)
-        lcd.drawText(statusX + lwHeli + 5, yText, heliText, 0)
-        yText = yText + lineH + lineGap
-    end
-
-    local function drawKV(label, value, unit)
-        if not label then return end
-        -- stop if there is no more vertical room
-        if (yText + lineH) > (h - margin - 2) then return end
-
-        -- Label
-        lcd.color(textColor)
-        lcd.font(FONT_STD)
-        lcd.drawText(statusX, yText, label, 0)
-        local lw = lcd.getTextSize(label)
-
-        -- Value
-        local v = value or "--"
-        lcd.color(gaugeColor)
-        lcd.font(FONT_STD)
-        lcd.drawText(statusX + lw + 5, yText, v, 0)
-        local vw, vh = lcd.getTextSize(v)
-
-        -- Unit (smaller font)
-        if unit and v ~= "--" and v ~= "" then
-            lcd.font(FONT_XXS)
-            local _, uh = lcd.getTextSize(unit)
-            local uy = yText + math.max(0, math.floor((vh - uh) / 2))
-            lcd.drawText(statusX + lw + 5 + vw + 2, uy, unit, 0)
-        end
-
-        lcd.font(FONT_STD)
-        yText = yText + lineH + lineGap
-    end
-
-    --------------------------------------------------------
-    -- Extended / Maximum : affichage des capteurs sous la liste de gauche
-    --------------------------------------------------------
-    if widget.telemetryMode ~= TELEMETRY_MODE_BASIC then
-        if widget.ambTempSource then
-            if type(widget.ambTempValue) == "number" then
-                drawKV("Amb.T :", string.format("%.1f", widget.ambTempValue), "°C")
-            else
-                drawKV("Amb.T :", "--")
-            end
-        end
-        if widget.pressSource then
-            if type(widget.pressValue) == "number" then
-                local pressureUnit = "mbar"
-                if widget.ecuType == 5 then
-                    pressureUnit = "kPa"
-                end
-                drawKV("Pres :", string.format("%d", math.floor(widget.pressValue + 0.5)), pressureUnit)
-            else
-                drawKV("Pres :", "--")
-            end
-        end
-        if widget.ecuType == 5 and widget.engineCurrentSource then
-            if type(widget.engineCurrentValue) == "number" then
-                drawKV("ECU Current :", string.format("%.1f", widget.engineCurrentValue), sourceUnit(widget.engineCurrentSource))
-            else
-                drawKV("ECU Current :", "--")
-            end
-        end
-        if widget.altSource then
-            if type(widget.altValue) == "number" then
-                drawKV("Alt :", string.format("%d", math.floor(widget.altValue + 0.5)), "m")
-            else
-                drawKV("Alt :", "--")
-            end
-        end
-        if widget.telemetryMode == TELEMETRY_MODE_MAXIMUM and widget.pumpAmpSource then
-            if type(widget.pumpAmpValue) == "number" then
-                drawKV("P.Amp :", string.format("%.1f", widget.pumpAmpValue), "A")
-            else
-                drawKV("P.Amp :", "--")
-            end
-        end
-        if widget.telemetryMode == TELEMETRY_MODE_MAXIMUM and widget.battUsedSource then
-            if type(widget.battUsedValue) == "number" then
-                drawKV("Batt.Us :", string.format("%d", math.floor(widget.battUsedValue + 0.5)), "mAh")
-            else
-                drawKV("Batt.Us :", "--")
-            end
-        end
-        if widget.telemetryMode == TELEMETRY_MODE_MAXIMUM and widget.engineTimeSource then
-            drawKV("Eng.Tm :", fmtTimeMMSS(widget.engineTimeValue))
-        end
-        if widget.telemetryMode == TELEMETRY_MODE_MAXIMUM and widget.serialSource then
-            local v
-            if type(widget.serialValue) == "number" then
-                v = string.format("%d", math.floor(widget.serialValue + 0.5))
-            elseif type(widget.serialValue) == "string" then
-                v = widget.serialValue
-            else
-                v = "--"
-            end
-            drawKV("SN :", v)
-        end
-    end
-
-    if widget.throttleSource then
-        local throttlePercent = throttleToPercent(widget.throttleValue)
-
-        if throttlePercent ~= nil then
-            drawKV(
-                "THR :",
-                string.format("%d", math.floor(throttlePercent + 0.5)),
-                "%"
-            )
-        else
-            drawKV("THR :", "--")
-        end
-    end
-
-    if widget.ecuThrottleSource then
-        local ecuThrottleText = "--"
-        if type(widget.ecuThrottleValue) == "number" then
-            local ecuThrottlePercent = widget.ecuThrottleValue
-            if ecuThrottlePercent < 0 then
-                ecuThrottlePercent = 0
-            elseif ecuThrottlePercent > 100 then
-                ecuThrottlePercent = 100
-            end
-            ecuThrottleText = string.format("%d", math.floor(ecuThrottlePercent + 0.5))
-        end
-        drawKV("ECU THR :", ecuThrottleText, "%")
-    end
-
-
-    --------------------------------------------------------
-
-    --------------------------------------------------------
-    -- 4–7) Jauges principales via dashboardObjects (premier essai)
-
- --------------------------------------------------------
-    local ctx = {
-        w            = w,
-        h            = h,
-        margin       = margin,
-        gaugeColor   = gaugeColor,
-        alertColor   = alertColor,
-        bgGaugeColor = bgGaugeColor,
-        textColor    = textColor,
-
-        -- géométrie
-        cxRight       = cxRight,
-        cyTop         = cyTop,
-        cyBottom      = cyBottom,
-        innerBig      = innerBig,
-        radiusBig     = radiusBig,
-        cxLeft        = cxLeft,
-        cyLeft        = cyLeft,
-        radiusSmall   = radiusSmall,
-        thicknessSmall = thicknessSmall,
-
-        -- valeurs
-        rpmPercent   = rpmPercent,
-        rpmText      = rpmText,
-        egtPercent   = egtPercent,
-        egtText      = egtText,
-        egtBandStartPercent = egtBandStartPercent,
-        pumpPercent  = pumpPercent,
-        pumpText     = pumpText,
-        fuelPercent  = fuelPercent,
-        fuelText     = fuelText
-    }
-
-    renderDashboard(widget, ctx)
-
-    --------------------------------------------------------
-    -- Fuel Flow : affichage sous la jauge PUMP (Extended / Maximum)
-    --  - Centré sous la jauge
-    --  - Maintenu au-dessus de la barre carburant pour éviter chevauchement
-    --------------------------------------------------------
-    if widget.telemetryMode ~= TELEMETRY_MODE_BASIC and widget.fuelFlowSource then
-        -- Texte
-        local flowLabel = "Fuel.Fw"
-        if widget.ecuType == 5 then
-            flowLabel = "Pump.Fw"
-        end
-        local flowValue = "--"
-        local flowUnit  = nil
-
-        if type(widget.fuelFlowValue) == "number" then
-            flowValue = string.format("%d", math.floor(widget.fuelFlowValue + 0.5))
-            flowUnit  = "ml/mn"
-        end
-
-        -- Géométrie de la barre carburant (mêmes règles que renderDashboard)
-        local baseH, baseW = 272, 480
-        local scaleH       = h / baseH
-        local scaleW       = w / baseW
-        if scaleH < 0.3 then scaleH = 0.3 end
-        if scaleW < 0.3 then scaleW = 0.3 end
-        local scale        = math.min(scaleH, scaleW)
-
-        local fuelBarHeight = math.max(6, math.floor(18 * scale))
-        local fuelBarY      = h - fuelBarHeight - margin
-
-        -- Mesures texte (FONT_STD pour garder la hauteur minimale)
-        lcd.font(FONT_STD)
-
-        local labelPart = flowLabel .. " : "
-        local valuePart = flowValue
-        local unitPart  = flowUnit and (" " .. flowUnit) or ""
-
-        local labelW, flowH = lcd.getTextSize(labelPart)
-        local valueW, _     = lcd.getTextSize(valuePart)
-
-        local unitW = 0
-        if flowUnit then
-            unitW, _ = lcd.getTextSize(unitPart)
-        end
-
-        local totalW = labelW + valueW + unitW
-
-        -- Position : sous la jauge Pump, mais clampée au-dessus de la zone Fuel
-        local x = math.floor(cxLeft - totalW / 2)
-
-        local yDesired = math.floor((cyLeft + radiusSmall) + 4)
-
-        -- On évite aussi la ligne "CARBURANT" (dessinée juste au-dessus de la barre)
-        local _, fuelLabelH = lcd.getTextSize("CARBURANT")
-        local yLimit = fuelBarY - fuelLabelH - 2 - flowH - 2
-        if yLimit < margin then yLimit = margin end
-
-        local y = yDesired
-        if y > yLimit then y = yLimit end
-        y = math.floor(y)
-
-        -- Affichage (label en blanc, valeur en vert, unité en blanc)
-        lcd.color(textColor)
-        lcd.drawText(x, y, labelPart, 0)
-
-        lcd.color(gaugeColor)
-        lcd.drawText(x + labelW, y, valuePart, 0)
-
-        if flowUnit then
-            lcd.color(textColor)
-            lcd.drawText(x + labelW + valueW, y, unitPart, 0)
-        end
-    end
-
-end
-
 
 -------------------------------------------------------------
 -- Configuration (sélection des sources ETHOS + échelles)
@@ -2003,15 +1413,35 @@ local function drawTelemetryPanel(x, y, width, rows, availableHeight, palette, c
     end
 end
 
+local function fitStatusFont(text, maxWidth, compact)
+    local fonts
+    if compact then
+        fonts = { FONT_XL, FONT_L, FONT_STD, FONT_XS, FONT_XXS }
+    else
+        fonts = { FONT_XXL, FONT_XL, FONT_L, FONT_STD, FONT_XS, FONT_XXS }
+    end
+
+    for i = 1, #fonts do
+        lcd.font(fonts[i])
+        local textW = lcd.getTextSize(text)
+        if textW <= maxWidth then
+            return fonts[i]
+        end
+    end
+
+    return FONT_XXS
+end
+
 local function drawStatusHeader(cx, y, status, chrono, width, palette, compact)
     local statusText = string.upper(status or "NO DATA")
     local statusBgColor = lcd.RGB(52, 56, 60)
-    local statusFont = compact and FONT_XL or FONT_XXL
+    local horizontalPadding = compact and 26 or 40
+    local minimumFrameW = math.floor(width * 0.92)
+    local frameW = width
+    local availableTextW = math.max(1, frameW - horizontalPadding)
+    local statusFont = fitStatusFont(statusText, availableTextW, compact)
     lcd.font(statusFont)
     local statusW, statusH = lcd.getTextSize(statusText)
-    local minimumFrameW = math.floor(width * 0.92)
-    local frameW = math.min(width,
-        math.max(minimumFrameW, statusW + (compact and 26 or 40)))
     local frameH = compact and 54 or 72
     local frameX = math.floor(cx - frameW / 2)
     local statusCx = frameX + frameW / 2
@@ -2074,16 +1504,16 @@ end
 local function drawSegmentedGauge(cx, cy, radius, percent, maxPercent, palette)
     local inner = math.max(1, radius - math.max(5, math.floor(radius * 0.13)))
     local active = math.max(0, math.min(maxPercent, percent or 0))
-    local yellow = lcd.RGB and lcd.RGB(255, 210, 0) or getWarnColor()
-    local orange = lcd.RGB and lcd.RGB(255, 110, 0) or getWarnColor()
+    local yellow = lcd.RGB(255, 210, 0)
+    local orange = lcd.RGB(255, 110, 0)
     for i = 0, 23 do
         local fromP, midP = maxPercent * i / 24, maxPercent * (i + 0.5) / 24
         local color = palette.bgGaugeColor
         if active > fromP then
-            if midP < maxPercent * 0.62 then color = palette.gaugeColor
+            if midP < maxPercent * 0.62 then color = palette.safeColor
             elseif midP < maxPercent * 0.78 then color = yellow
             elseif midP < maxPercent * 0.91 then color = orange
-            else color = palette.alertColor end
+            else color = palette.criticalColor end
         end
         if lcd.drawAnnulusSector then
             lcd.color(color)
@@ -2107,17 +1537,18 @@ local function drawMainGauge(cx, cy, radius, value, label, unit, percent, palett
     end
 end
 
-local function drawPumpGauge(cx, cy, radius, value, percent, palette, compact)
+local function drawPumpGauge(cx, cy, radius, value, percent, palette, compact, label)
+    label = label or "PUMP"
     drawSegmentedGauge(cx, cy, radius, percent, 100, palette)
     drawCentered(cx, cy - (compact and 22 or 29), value,
         compact and FONT_L or FONT_XL, palette.textColor)
-    drawCentered(cx, cy + (compact and 4 or 6), "PUMP",
+    drawCentered(cx, cy + (compact and 4 or 6), label,
         compact and FONT_XXS or FONT_XS, palette.textColor)
 end
 
 local function drawFuelGauge(x, y, width, percent, value, palette, compact)
-    local red = palette.alertColor
-    local yellow = lcd.RGB and lcd.RGB(255, 210, 0) or getWarnColor()
+    local red = palette.criticalColor
+    local yellow = lcd.RGB(255, 210, 0)
     local barH = compact and 16 or 24
     local p = math.max(0, math.min(100, percent or 0))
 
@@ -2154,7 +1585,7 @@ local function drawFuelGauge(x, y, width, percent, value, palette, compact)
     end
     drawActiveZone(0, 25, red)
     drawActiveZone(25, 50, yellow)
-    drawActiveZone(50, 100, palette.gaugeColor)
+    drawActiveZone(50, 100, palette.safeColor)
 
     lcd.font(fuelTextFont)
     lcd.color(palette.bgColor)
@@ -2191,7 +1622,7 @@ local function paint(widget)
     local panelAvailableHeight = math.max(1, gaugeY - bigR - margin - 2)
 
     local headerBottomY = drawStatusHeader(centerX, margin, getStatusText(widget.ecuType, widget.temp2Value),
-        fmtTimeMMSS(widget.chronoValue), math.floor(w * (compact and 0.44 or 0.46)), palette, compact)
+        fmtTimeMMSS(widget.chronoValue), math.floor(w * (compact and 0.38 or 0.40)), palette, compact)
     drawGib2aLogo(centerX, headerBottomY + (compact and 3 or 5), compact)
 
     if w >= 600 and h >= 360 then
@@ -2251,7 +1682,8 @@ local function paint(widget)
             rightRows[#rightRows + 1] = { "ECU THR", dashboardValue(ecuThrottle), "%" }
         end
         if widget.heliTpRpmSource ~= nil then
-            rightRows[#rightRows + 1] = { "HELI/TP", dashboardValue(widget.heliTpRpmValue), "RPM" }
+            local shaftLabel = widget.ecuType == 1 and "SHAFT" or "HELI/TP"
+            rightRows[#rightRows + 1] = { shaftLabel, dashboardValue(widget.heliTpRpmValue), "RPM" }
         end
         if widget.engineCurrentSource ~= nil then
             rightRows[#rightRows + 1] = { "ECU CUR", dashboardValue(widget.engineCurrentValue, 1), "A" }
@@ -2278,9 +1710,18 @@ local function paint(widget)
         mapToPercentRaw(egt, egtMax), palette, compact)
     local pumpY = math.floor(h * (compact and 0.66 or 0.65))
     local pumpR = math.floor(bigR * 0.59)
+    local pumpDisplay = decodePumpDisplayValue(widget.ecuType, pumpRaw)
+    local pumpText
+    local pumpLabel = "PUMP"
+    if widget.ecuType == 1 then
+        pumpText = dashboardValue(pumpDisplay, 1)
+        pumpLabel = "PUMP V"
+    else
+        pumpText = dashboardValue(pumpDisplay)
+    end
     drawPumpGauge(centerX, pumpY, pumpR,
-        dashboardValue(decodePumpDisplayValue(widget.ecuType, pumpRaw)),
-        clamp01(mapToPercentRaw(pumpRaw, pumpMax)), palette, compact)
+        pumpText, clamp01(mapToPercentRaw(pumpRaw, pumpMax)),
+        palette, compact, pumpLabel)
     drawFuelFlow(centerX, pumpY + pumpR + (compact and 2 or 4), widget, palette, compact)
 
     local fuelAreaX = margin
@@ -2290,22 +1731,60 @@ local function paint(widget)
         dashboardValue(widget._fuelDisplayValue or widget.fuelValue), palette, compact)
 end
 
+local ECU_TELEMETRY_BINDING_FIELDS = {
+    "rpmSource", "rpmValue",
+    "heliTpRpmSource", "heliTpRpmValue",
+    "ecuThrottleSource", "ecuThrottleValue",
+    "temp1Source", "temp1Value",
+    "temp2Source", "temp2Value",
+    "adc3Source", "adc3Value",
+    "adc4Source", "adc4Value",
+    "fuelSource", "fuelValue",
+    "ambTempSource", "ambTempValue",
+    "pressSource", "pressValue",
+    "altSource", "altValue",
+    "fuelFlowSource", "fuelFlowValue",
+    "serialSource", "serialValue",
+    "battUsedSource", "battUsedValue",
+    "engineTimeSource", "engineTimeValue",
+    "pumpAmpSource", "pumpAmpValue",
+    "engineCurrentSource", "engineCurrentValue",
+    "fuelConsumptionSource", "fuelConsumptionValue",
+}
+
+local function clearEcuTelemetryBindings(widget)
+    for i = 1, #ECU_TELEMETRY_BINDING_FIELDS, 2 do
+        local srcField = ECU_TELEMETRY_BINDING_FIELDS[i]
+        local valField = ECU_TELEMETRY_BINDING_FIELDS[i + 1]
+
+        widget[srcField] = nil
+        widget[valField] = nil
+
+        if widget._normalizedTelemetrySources then
+            widget._normalizedTelemetrySources[srcField] = nil
+        end
+        if widget._sourceRecoveryAt then
+            widget._sourceRecoveryAt[srcField] = nil
+        end
+    end
+
+    widget._fuelPercent = nil
+    widget._fuelDisplayValue = nil
+    widget._flameOutArmed = false
+    widget._restartArmed = false
+    widget._lastEcuStatus = nil
+    widget._autoBindStatus = nil
+end
+
 local function buildConfig(widget)
     local line
     local ecuChoices = {
         { "Xicoy",    1 }, -- ecuType 0
+        { "JetCat",   2 }, -- ecuType 1
         { "Enjet",    6 }, -- ecuType 5
         { "Linton",   5 }, -- ecuType 4
         { "KingTech", 3 }, -- ecuType 2
         { "Swiwin",   4 }, -- ecuType 3
-        { "JetCat",   2 }, -- ecuType 1
-    }
-
-    -- Setup Mode
-    local modeChoices = {
-        { "Basic",    1 },
-        { "Extended", 2 },
-        { "Maximum",  3 },
     }
 
     local themeChoices = {
@@ -2314,8 +1793,16 @@ local function buildConfig(widget)
         { "Amber",         3 },
     }
 
-    line = form.addLine("Setup Mode")
-    if form.addChoiceField then
+    if widget.ecuType == 0 then
+        -- Setup Mode
+        local modeChoices = {
+            { "Basic",    1 },
+            { "Extended", 2 },
+            { "Maximum",  3 },
+        }
+
+        line = form.addLine("Setup Mode")
+        if form.addChoiceField then
         form.addChoiceField(line, nil, modeChoices,
             function()
                 local m = widget.telemetryMode or TELEMETRY_MODE_BASIC
@@ -2349,7 +1836,7 @@ local function buildConfig(widget)
             end
 
         )
-    else
+        else
         -- Fallback (older ETHOS): numeric selector
         form.addNumberField(line, nil, TELEMETRY_MODE_BASIC, TELEMETRY_MODE_MAXIMUM,
             function() return widget.telemetryMode or TELEMETRY_MODE_BASIC end,
@@ -2372,6 +1859,7 @@ local function buildConfig(widget)
             end
 
         )
+        end
     end
 
     line = form.addLine("ECU Type")
@@ -2397,7 +1885,11 @@ local function buildConfig(widget)
                 end
                 local newType = sel - 1
                 if (widget.ecuType or 0) ~= newType then
+                    clearEcuTelemetryBindings(widget)
                     widget.ecuType = newType
+                    if (not lcd.isVisible) or lcd.isVisible() then
+                        lcd.invalidate()
+                    end
                     if form.clear then
                         form.clear()
                         buildConfig(widget)
@@ -2413,7 +1905,11 @@ local function buildConfig(widget)
                 local t = v or 0
                 if t < 0 then t = 0 elseif t > (#ecuChoices - 1) then t = (#ecuChoices - 1) end
                 if (widget.ecuType or 0) ~= t then
+                    clearEcuTelemetryBindings(widget)
                     widget.ecuType = t
+                    if (not lcd.isVisible) or lcd.isVisible() then
+                        lcd.invalidate()
+                    end
                     if form.clear then
                         form.clear()
                         buildConfig(widget)
@@ -2476,7 +1972,9 @@ local function buildConfig(widget)
         function() return widget.rpmSource end,
         function(v) widget.rpmSource = v end)
 
-    line = form.addLine("Heli/TP RPM Sensor")
+    local heliTpRpmSensorLabel = widget.ecuType == 1
+        and "Shaft RPM Sensor" or "Heli/TP RPM Sensor"
+    line = form.addLine(heliTpRpmSensorLabel)
     form.addSourceField(line, nil,
         function() return widget.heliTpRpmSource end,
         function(v) widget.heliTpRpmSource = v end)
@@ -2531,14 +2029,39 @@ local function buildConfig(widget)
         form.addSourceField(line, nil,
             function() return widget.fuelConsumptionSource end,
             function(v) widget.fuelConsumptionSource = v end)
+    elseif widget.ecuType == 1 then
+        line = form.addLine("ECU Current Sensor")
+        form.addSourceField(line, nil,
+            function() return widget.engineCurrentSource end,
+            function(v) widget.engineCurrentSource = v end)
+
+        line = form.addLine("Altitude Sensor")
+        form.addSourceField(line, nil,
+            function() return widget.altSource end,
+            function(v) widget.altSource = v end)
+
+        line = form.addLine("Fuel Flow Sensor")
+        form.addSourceField(line, nil,
+            function() return widget.fuelFlowSource end,
+            function(v) widget.fuelFlowSource = v end)
+
+        line = form.addLine("Battery Capacity Sensor")
+        form.addSourceField(line, nil,
+            function() return widget.battUsedSource end,
+            function(v) widget.battUsedSource = v end)
     end
 
     -- Pump max (valeur réelle pour 100%)
     if widget.ecuType ~= 0 then
-        line = form.addLine("Pump Max (100%)")
+        local pumpMaxLabel = widget.ecuType == 1
+            and "Pump Max Voltage (100%)" or "Pump Max (100%)"
+        line = form.addLine(pumpMaxLabel)
         local pumpField = form.addNumberField(line, nil, 1, 1000,
             function() return widget.pumpMax or 100 end,
             function(v) widget.pumpMax = v end)
+        if widget.ecuType == 1 and pumpField and pumpField.suffix then
+            pumpField:suffix("V")
+        end
         if pumpField and pumpField.step then
             pumpField:step(1)
         end
@@ -2546,7 +2069,7 @@ local function buildConfig(widget)
 
     -- Fuel remaining (valeur réelle)
     local fuelSensorLabel = "Fuel Sensor (Real)"
-    if widget.ecuType == 0 then
+    if widget.ecuType == 0 or widget.ecuType == 1 then
         fuelSensorLabel = "Fuel Sensor (%)"
     end
     line = form.addLine(fuelSensorLabel)
@@ -2563,7 +2086,7 @@ local function buildConfig(widget)
 
                 local fuelChanged = updateFuel(widget)
 
-                if fuelChanged and lcd.invalidate then
+                if fuelChanged then
                     lcd.invalidate()
                 end
             end)
@@ -2673,7 +2196,7 @@ if fuelCriticalField and fuelCriticalField.step then
 
     -- Extended / Maximum : télémétrie ProHub optionnelle
     local mode = widget.telemetryMode or TELEMETRY_MODE_BASIC
-    if mode ~= TELEMETRY_MODE_BASIC then
+    if widget.ecuType == 0 and mode ~= TELEMETRY_MODE_BASIC then
             -- ProHub Extended / Maximum telemetry (optionnel)
             line = form.addLine("Ambient Temp (°C)")
             form.addSourceField(line, nil,
@@ -2828,7 +2351,7 @@ if fuelCriticalField and fuelCriticalField.step then
                 if (widget.theme or 0) ~= newTheme then
                     widget.theme = newTheme
                     -- Force immediate redraw so the user sees the theme right away
-                    if lcd.invalidate and ((not lcd.isVisible) or lcd.isVisible()) then
+                    if (not lcd.isVisible) or lcd.isVisible() then
                         lcd.invalidate()
                     end
                     -- Rebuild form (same behavior as Setup Mode) for consistency
@@ -2849,7 +2372,7 @@ if fuelCriticalField and fuelCriticalField.step then
                 if newTheme < 0 then newTheme = 0 elseif newTheme > 2 then newTheme = 2 end
                 if (widget.theme or 0) ~= newTheme then
                     widget.theme = newTheme
-                    if lcd.invalidate and ((not lcd.isVisible) or lcd.isVisible()) then
+                    if (not lcd.isVisible) or lcd.isVisible() then
                         lcd.invalidate()
                     end
                 end
@@ -2873,24 +2396,51 @@ end
 -- Wakeup : lecture via readSourceValue
 -------------------------------------------------------------
 
+local WAKEUP_CORE_FIELDS = {
+    "chronoSource", "chronoValue",
+    "rpmSource", "rpmValue",
+    "heliTpRpmSource", "heliTpRpmValue",
+    "ecuThrottleSource", "ecuThrottleValue",
+    "temp1Source", "temp1Value",
+    "temp2Source", "temp2Value",
+    "adc3Source", "adc3Value",
+    "adc4Source", "adc4Value",
+    "diy1Source", "diy1Value",
+    "diy2Source", "diy2Value",
+    "diy3Source", "diy3Value",
+}
+
+local WAKEUP_EXTENDED_FIELDS = {
+    "ambTempSource", "ambTempValue",
+    "pressSource", "pressValue",
+    "altSource", "altValue",
+    "fuelFlowSource", "fuelFlowValue",
+    "serialSource", "serialValue",
+    "battUsedSource", "battUsedValue",
+    "engineTimeSource", "engineTimeValue",
+    "pumpAmpSource", "pumpAmpValue",
+    "engineCurrentSource", "engineCurrentValue",
+    "fuelConsumptionSource", "fuelConsumptionValue",
+}
+
+local WAKEUP_SYSTEM_FIELDS = {
+    "rxbattSource", "rxbattValue",
+    "rssi1Source", "rssi1Value",
+    "rssi2Source", "rssi2Value",
+}
+
 local function wakeup(widget)
     -- Use a dirty flag so lcd.invalidate() is only called once per wakeup loop
     -- as suggested by Rob Thomson.
     local dirty = false
 
-    dirty = updateField(widget, "chronoSource",   "chronoValue") or dirty
-
-    dirty = updateField(widget, "rpmSource",      "rpmValue") or dirty
-    dirty = updateField(widget, "heliTpRpmSource", "heliTpRpmValue") or dirty
-    dirty = updateField(widget, "ecuThrottleSource", "ecuThrottleValue") or dirty
-    dirty = updateField(widget, "temp1Source",    "temp1Value") or dirty
-    dirty = updateField(widget, "temp2Source",    "temp2Value") or dirty
-    dirty = updateField(widget, "adc3Source",     "adc3Value") or dirty
-    dirty = updateField(widget, "adc4Source",     "adc4Value") or dirty
-
-    dirty = updateField(widget, "diy1Source",     "diy1Value") or dirty
-    dirty = updateField(widget, "diy2Source",     "diy2Value") or dirty
-    dirty = updateField(widget, "diy3Source",     "diy3Value") or dirty
+    for i = 1, #WAKEUP_CORE_FIELDS, 2 do
+        dirty = updateField(
+            widget,
+            WAKEUP_CORE_FIELDS[i],
+            WAKEUP_CORE_FIELDS[i + 1]
+        ) or dirty
+    end
     if widget._diy1UnitSource ~= widget.diy1Source then
         widget._diy1UnitSource = widget.diy1Source
         widget.diy1Unit = sourceUnit(widget.diy1Source) or ""
@@ -2908,22 +2458,22 @@ local function wakeup(widget)
     end
 
     -- ProHub Extended / Maximum
-    dirty = updateField(widget, "ambTempSource",      "ambTempValue") or dirty
-    dirty = updateField(widget, "pressSource",        "pressValue") or dirty
-    dirty = updateField(widget, "altSource",          "altValue") or dirty
-    dirty = updateField(widget, "fuelFlowSource",     "fuelFlowValue") or dirty
-    dirty = updateField(widget, "serialSource",       "serialValue") or dirty
-    dirty = updateField(widget, "battUsedSource",     "battUsedValue") or dirty
-    dirty = updateField(widget, "engineTimeSource",   "engineTimeValue") or dirty
-    dirty = updateField(widget, "pumpAmpSource",      "pumpAmpValue") or dirty
-    dirty = updateField(widget, "engineCurrentSource", "engineCurrentValue") or dirty
-    dirty = updateField(widget, "fuelConsumptionSource", "fuelConsumptionValue") or dirty
+    for i = 1, #WAKEUP_EXTENDED_FIELDS, 2 do
+        dirty = updateField(
+            widget,
+            WAKEUP_EXTENDED_FIELDS[i],
+            WAKEUP_EXTENDED_FIELDS[i + 1]
+        ) or dirty
+    end
 
     -- Capteurs généraux
-    dirty = updateSystemField(widget, "rxbattSource", "rxbattValue") or dirty
-
-    dirty = updateSystemField(widget, "rssi1Source", "rssi1Value") or dirty
-    dirty = updateSystemField(widget, "rssi2Source", "rssi2Value") or dirty
+    for i = 1, #WAKEUP_SYSTEM_FIELDS, 2 do
+        dirty = updateSystemField(
+            widget,
+            WAKEUP_SYSTEM_FIELDS[i],
+            WAKEUP_SYSTEM_FIELDS[i + 1]
+        ) or dirty
+    end
     if widget._rssi1UnitSource ~= widget.rssi1Source then
         widget._rssi1UnitSource = widget.rssi1Source
         widget.rssi1Unit = sourceUnit(widget.rssi1Source)
@@ -2939,7 +2489,7 @@ local function wakeup(widget)
     dirty = updateFuel(widget) or dirty
     updateFlameOutAlarm(widget)
 
-    if dirty and lcd.invalidate then
+    if dirty then
         if (not lcd.isVisible) or lcd.isVisible() then
             lcd.invalidate()
         end
@@ -2953,75 +2503,24 @@ end
 -- Changing one sequence without changing the other can corrupt restored settings.
 -------------------------------------------------------------
 
+local function readStandardParams(widget, firstIndex, lastIndex)
+    for i = firstIndex, lastIndex do
+        local param = PERSISTENCE_PARAMS[i]
+        local value = storage.read(param.key)
+
+        if value == nil then
+            value = param.default
+        end
+
+        widget[param.key] = value
+    end
+end
+
 local function read(widget)
-    widget.chronoSource  = storage.read("chronoSource")
-    widget.throttleSource = storage.read("throttleSource")
-
-    widget.rpmSource      = storage.read("rpmSource")
-    widget.heliTpRpmSource = storage.read("heliTpRpmSource")
-    widget.temp1Source    = storage.read("temp1Source")
-    widget.temp2Source    = storage.read("temp2Source")
-    widget.adc3Source     = storage.read("adc3Source")
-    widget.adc4Source     = storage.read("adc4Source")
-    widget.fuelSource     = storage.read("fuelSource")
-
-    widget.diy1Source     = storage.read("diy1Source")
-    widget.diy2Source     = storage.read("diy2Source")
-    widget.diy3Source     = storage.read("diy3Source")
-
-    -- ProHub Extended / Maximum
-    widget.ambTempSource    = storage.read("ambTempSource")
-    widget.pressSource      = storage.read("pressSource")
-    widget.altSource        = storage.read("altSource")
-    widget.fuelFlowSource   = storage.read("fuelFlowSource")
-    widget.serialSource     = storage.read("serialSource")
-    widget.battUsedSource   = storage.read("battUsedSource")
-    widget.engineTimeSource = storage.read("engineTimeSource")
-    widget.pumpAmpSource    = storage.read("pumpAmpSource")
-    widget.engineCurrentSource = storage.read("engineCurrentSource")
-    widget.fuelConsumptionSource = storage.read("fuelConsumptionSource")
-
-    widget.rxbattSource   = storage.read("rxbattSource")
-
-    widget.rssi1Source    = storage.read("rssi1Source")
-    widget.rssi2Source    = storage.read("rssi2Source")
-
-    local alert = storage.read("fuelAlertPercent")
-    if alert ~= nil then
-        widget.fuelAlertPercent = alert
-    end
-
-    local critical = storage.read("fuelCriticalAlertPercent")
-    if critical ~= nil then
-        widget.fuelCriticalAlertPercent = critical
-    end
-
-    local alertFile = storage.read("fuelAlertFile")
-    if alertFile ~= nil then
-        widget.fuelAlertFile = alertFile
-    end
-
-    local criticalFile = storage.read("fuelCriticalAlertFile")
-    if criticalFile ~= nil then
-        widget.fuelCriticalAlertFile = criticalFile
-    end
-
-    local flameOutFile = storage.read("flameOutAlertFile")
-    if flameOutFile ~= nil then
-        widget.flameOutAlertFile = flameOutFile
-    end
-
-    local rpmMax = storage.read("rpmMax")
-    if rpmMax ~= nil then widget.rpmMax = rpmMax end
-
-    local egtMax = storage.read("egtMax")
-    if egtMax ~= nil then widget.egtMax = egtMax end
-
-    local pumpMax = storage.read("pumpMax")
-    if pumpMax ~= nil then widget.pumpMax = pumpMax end
+    readStandardParams(widget, 1, 33)
 
     local fuelMax = storage.read("fuelMax")
-    local storedTheme = storage.read("theme")
+    readStandardParams(widget, 34, 34)
     local mode = storage.read("telemetryMode")
     local setupModeSchema = storage.read("setupModeSchema")
     local storedEcuType = storage.read("ecuType")
@@ -3039,10 +2538,6 @@ local function read(widget)
         end
     end
 
-    if storedTheme ~= nil then
-        widget.theme = storedTheme
-    end
-
     if mode ~= nil then
         if setupModeSchema == nil and mode == 1 then
             widget.telemetryMode = TELEMETRY_MODE_MAXIMUM
@@ -3056,10 +2551,7 @@ local function read(widget)
         end
     end
 
-    local storedEcuThrottleSource = storage.read("ecuThrottleSource")
-    if storedEcuThrottleSource ~= nil then
-        widget.ecuThrottleSource = storedEcuThrottleSource
-    end
+    readStandardParams(widget, 35, 35)
 
     local storedXicoyFuelStartPercent = storage.read("xicoyFuelStartPercent")
     if type(storedXicoyFuelStartPercent) == "number" then
@@ -3079,87 +2571,34 @@ local function read(widget)
             storedFuelColorSoundAlertsEnabled
     end
 
-    local storedFuelLevelCalloutFile =
-        storage.read("fuelLevelCalloutFile")
-    if storedFuelLevelCalloutFile ~= nil then
-        widget.fuelLevelCalloutFile =
-            storedFuelLevelCalloutFile
-    end
-
-    local storedRestartAlertFile =
-        storage.read("restartAlertFile")
-
-    if storedRestartAlertFile ~= nil then
-        widget.restartAlertFile =
-            storedRestartAlertFile
-    end
+    readStandardParams(widget, 36, 37)
 
 end
 
+local function writeStandardParams(widget, firstIndex, lastIndex)
+    for i = firstIndex, lastIndex do
+        local param = PERSISTENCE_PARAMS[i]
+        storage.write(param.key, widget[param.key])
+    end
+end
+
 local function write(widget)
-    storage.write("chronoSource",  widget.chronoSource)
-    storage.write("throttleSource", widget.throttleSource)
-
-    storage.write("rpmSource",      widget.rpmSource)
-    storage.write("heliTpRpmSource", widget.heliTpRpmSource)
-    storage.write("temp1Source",    widget.temp1Source)
-    storage.write("temp2Source",    widget.temp2Source)
-    storage.write("adc3Source",     widget.adc3Source)
-    storage.write("adc4Source",     widget.adc4Source)
-    storage.write("fuelSource",     widget.fuelSource)
-
-    storage.write("diy1Source",     widget.diy1Source)
-    storage.write("diy2Source",     widget.diy2Source)
-    storage.write("diy3Source",     widget.diy3Source)
-
-    -- ProHub Extended / Maximum
-    storage.write("ambTempSource",    widget.ambTempSource)
-    storage.write("pressSource",      widget.pressSource)
-    storage.write("altSource",        widget.altSource)
-    storage.write("fuelFlowSource",   widget.fuelFlowSource)
-    storage.write("serialSource",     widget.serialSource)
-    storage.write("battUsedSource",   widget.battUsedSource)
-    storage.write("engineTimeSource", widget.engineTimeSource)
-    storage.write("pumpAmpSource",    widget.pumpAmpSource)
-    storage.write("engineCurrentSource", widget.engineCurrentSource)
-    storage.write("fuelConsumptionSource", widget.fuelConsumptionSource)
-
-    storage.write("rxbattSource",   widget.rxbattSource)
-
-    storage.write("rssi1Source",    widget.rssi1Source)
-    storage.write("rssi2Source",    widget.rssi2Source)
-
-    storage.write("fuelAlertPercent", widget.fuelAlertPercent)
-    storage.write("fuelCriticalAlertPercent", widget.fuelCriticalAlertPercent)
-    storage.write("fuelAlertFile",            widget.fuelAlertFile)
-    storage.write("fuelCriticalAlertFile",    widget.fuelCriticalAlertFile)
-    storage.write("flameOutAlertFile",        widget.flameOutAlertFile)
-
-    storage.write("rpmMax",           widget.rpmMax)
-    storage.write("egtMax",           widget.egtMax)
-    storage.write("pumpMax",          widget.pumpMax)
+    writeStandardParams(widget, 1, 33)
     storage.write("fuelMax",          widget.fuelMax)
-    storage.write("theme", widget.theme)
+    writeStandardParams(widget, 34, 34)
     storage.write(
         "telemetryMode",
         widget.telemetryMode or TELEMETRY_MODE_BASIC
     )
     storage.write("setupModeSchema", SETUP_MODE_SCHEMA)
     storage.write("ecuType", widget.ecuType or 0)
-    storage.write("ecuThrottleSource", widget.ecuThrottleSource)
+    writeStandardParams(widget, 35, 35)
     storage.write("xicoyFuelStartPercent", widget.xicoyFuelStartPercent or 100)
     storage.write(
         "fuelColorSoundAlertsEnabled",
         widget.fuelColorSoundAlertsEnabled ~= false
     )
-    storage.write(
-        "fuelLevelCalloutFile",
-        widget.fuelLevelCalloutFile
-    )
-    storage.write(
-        "restartAlertFile",
-        widget.restartAlertFile
-    )
+    writeStandardParams(widget, 36, 37)
 end
 
 -------------------------------------------------------------
@@ -3170,7 +2609,7 @@ local function init()
     loadGib2aLogo()
     system.registerWidget({
         key        = "GIB2A",
-			name       = "GIB2A TURBINE Widget V" .. WIDGET_VERSION,
+			name       = "GIB2A TURBINE Widjet V" .. WIDGET_VERSION,
         create     = create,
         wakeup     = wakeup,
         configure  = configure,
