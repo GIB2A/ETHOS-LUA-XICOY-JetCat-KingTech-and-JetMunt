@@ -39,12 +39,24 @@ def make_zip(path, entries):
         if len(logos) != 1 or hashlib.sha256(zf.read(logos[0])).hexdigest().upper() != EXPECTED_LOGO_HASH:
             raise SystemExit(f"Extracted logo validation failed: {path.name}")
 
+direct = out / "GIB2A_V26.3.4.zip"
+direct_entries = [
+    ("GIB2A/main.lua", raw),
+    ("GIB2A/gib2a_logo_ethos_180.png", logo_raw),
+]
+if "--direct-only" in sys.argv:
+    make_zip(direct, direct_entries)
+    print(f"{direct.name}: {direct.stat().st_size} bytes, SHA-256 {hashlib.sha256(direct.read_bytes()).hexdigest().upper()}")
+    print("Direct build: PASS")
+    sys.exit(0)
+
 sd = out / "GIB2A-Xicoy-ProHub-Widget-V26.3.4-SD.zip"
 make_zip(sd, [
     ("SCRIPTS/GIB2A/main.lua", raw),
     ("SCRIPTS/GIB2A/gib2a_logo_ethos_180.png", logo_raw),
 ])
-archives = [sd]
+make_zip(direct, direct_entries)
+archives = [sd, direct]
 manifest = ROOT / "packaging/ethos_lua_manifest.json"
 if manifest.exists():
     suite = out / "GIB2A-Xicoy-ProHub-Widget-V26.3.4-ETHOS-Suite.zip"

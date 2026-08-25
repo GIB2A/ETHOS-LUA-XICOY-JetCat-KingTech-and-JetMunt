@@ -7,7 +7,7 @@ turbine and ECU telemetry it never starts, stops, restarts or controls a turbine
 
 ![GIB2A turbine telemetry dashboard](assets/gib2a-widget-preview.png)
 
-[Download GIB2A V26.3.4 for ETHOS Suite](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/download/v26.3.4/GIB2A-Xicoy-ProHub-Widget-V26.3.4-ETHOS-Suite.zip)
+[Download GIB2A V26.3.4](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/download/v26.3.4/GIB2A_V26.3.4.zip)
 
 > **Important:** Uninstall any previous version of GIB2A before installing V26.3.4.
 
