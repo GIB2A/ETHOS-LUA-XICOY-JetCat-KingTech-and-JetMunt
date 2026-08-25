@@ -8,7 +8,7 @@ redémarre et ne commande jamais une turbine.
 
 ![Tableau de bord de télémétrie turbine GIB2A](assets/gib2a-widget-preview.png)
 
-[Télécharger GIB2A V26.3.4](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/download/v26.3.4/GIB2A_V26.3.4.zip)
+[Télécharger GIB2A V26.3.4](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/raw/refs/heads/main/downloads/V26.3.4/GIB2A_V26.3.4.zip)
 
 > **Important :** désinstallez toute version précédente de GIB2A avant d’installer V26.3.4.
 
