@@ -14,6 +14,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y lua5.4
       - name: Lua syntax
         run: luac -p src/GIB2A/main.lua
+      - name: Build release packages
+        run: python tools/build_release.py
       - name: Validate release
         run: python tools/validate_release.py
       - name: Whitespace

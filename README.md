@@ -7,7 +7,7 @@ turbine and ECU telemetry it never starts, stops, restarts or controls a turbine
 
 ![GIB2A turbine telemetry dashboard](assets/gib2a-widget-preview.png)
 
-[Download GIB2A V26.3.4](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/raw/refs/heads/main/downloads/V26.3.4/GIB2A_V26.3.4.zip)
+[Download GIB2A V26.3.4 for ETHOS Suite](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/download/v26.3.4/GIB2A-Xicoy-ProHub-Widget-V26.3.4-ETHOS-Suite.zip)
 
 > **Important:** Uninstall any previous version of GIB2A before installing V26.3.4.
 
@@ -51,10 +51,13 @@ JetMunt compatibility is not claimed because it has not been demonstrated here.
 
 ## Installation
 
-For manual installation, extract the SD package so the radio contains exactly
+For manual installation, download the
+[SD package](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/download/v26.3.4/GIB2A-Xicoy-ProHub-Widget-V26.3.4-SD.zip)
+and extract it so the radio contains exactly
 `SCRIPTS/GIB2A/main.lua` and `SCRIPTS/GIB2A/gib2a_logo_ethos_180.png`, then
 reboot the radio and add the `GIB2A` widget.
-For ETHOS Suite, use the dedicated Suite archive. See
+For ETHOS Suite, use the dedicated
+[ETHOS Suite package](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/download/v26.3.4/GIB2A-Xicoy-ProHub-Widget-V26.3.4-ETHOS-Suite.zip). See
 [Installation](docs/INSTALLATION.md).
 
 ## Configuration and telemetry

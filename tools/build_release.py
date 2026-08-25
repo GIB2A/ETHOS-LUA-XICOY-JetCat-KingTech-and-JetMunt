@@ -1,5 +1,5 @@
 from __future__ import annotations
-import hashlib, shutil, sys, tempfile, zipfile
+import hashlib, shutil, tempfile, zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,38 +40,25 @@ def make_zip(path, entries):
             raise SystemExit(f"Extracted logo validation failed: {path.name}")
 
 manifest = ROOT / "packaging/ethos_lua_manifest.json"
-direct = out / "GIB2A_V26.3.4.zip"
-suite_entries = None
-if manifest.exists():
-    suite_entries = [
-        ("ethos_lua_manifest.json", manifest.read_bytes()),
-        ("main.lua", raw),
-        ("gib2a_logo_ethos_180.png", logo_raw),
-        ("README.md", (ROOT / "README.md").read_bytes()),
-        ("CHANGELOG.md", (ROOT / "CHANGELOG.md").read_bytes()),
-        ("INSTALLATION.md", (ROOT / "docs/INSTALLATION.md").read_bytes()),
-    ]
-if "--direct-only" in sys.argv:
-    if suite_entries is None:
-        raise SystemExit("Direct ZIP requires the validated ETHOS Suite manifest")
-    make_zip(direct, suite_entries)
-    print(f"{direct.name}: {direct.stat().st_size} bytes, SHA-256 {hashlib.sha256(direct.read_bytes()).hexdigest().upper()}")
-    print("Direct ETHOS Suite build: PASS")
-    sys.exit(0)
+if not manifest.exists():
+    raise SystemExit("ETHOS Suite package requires the validated manifest")
+suite_entries = [
+    ("ethos_lua_manifest.json", manifest.read_bytes()),
+    ("main.lua", raw),
+    ("gib2a_logo_ethos_180.png", logo_raw),
+    ("README.md", (ROOT / "README.md").read_bytes()),
+    ("CHANGELOG.md", (ROOT / "CHANGELOG.md").read_bytes()),
+    ("INSTALLATION.md", (ROOT / "docs/INSTALLATION.md").read_bytes()),
+]
 
 sd = out / "GIB2A-Xicoy-ProHub-Widget-V26.3.4-SD.zip"
 make_zip(sd, [
     ("SCRIPTS/GIB2A/main.lua", raw),
     ("SCRIPTS/GIB2A/gib2a_logo_ethos_180.png", logo_raw),
 ])
-archives = [sd]
-if suite_entries is not None:
-    suite = out / "GIB2A-Xicoy-ProHub-Widget-V26.3.4-ETHOS-Suite.zip"
-    make_zip(suite, suite_entries)
-    make_zip(direct, suite_entries)
-    archives.extend([suite, direct])
-else:
-    print("SKIP: no validated ETHOS Suite manifest; manual SD package only")
+suite = out / "GIB2A-Xicoy-ProHub-Widget-V26.3.4-ETHOS-Suite.zip"
+make_zip(suite, suite_entries)
+archives = [sd, suite]
 lines = [f"{hashlib.sha256(path.read_bytes()).hexdigest().upper()}  {path.name}" for path in sorted(archives)]
 (out / "SHA256SUMS.txt").write_text("\n".join(lines) + "\n", encoding="ascii", newline="\n")
 (out / "GITHUB_RELEASE_NOTES.md").write_bytes(
@@ -98,8 +85,10 @@ Release GIB2A V26.3.4
 Recommended commit description:
 Prepare the GIB2A V26.3.4 public release with the validated Lua source, external logo, updated documentation, release notes and reproducible SD and ETHOS Suite packages.
 
-Files to attach to the future GitHub Release:
+Official release packages (2 ZIP files):
 {attachment_lines}
+
+Checksum file to attach:
 - SHA256SUMS.txt
 
 SD ZIP SHA-256: {hashlib.sha256(sd.read_bytes()).hexdigest().upper()}

@@ -8,7 +8,7 @@ redémarre et ne commande jamais une turbine.
 
 ![Tableau de bord de télémétrie turbine GIB2A](assets/gib2a-widget-preview.png)
 
-[Télécharger GIB2A V26.3.4](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/raw/refs/heads/main/downloads/V26.3.4/GIB2A_V26.3.4.zip)
+[Télécharger GIB2A V26.3.4 pour ETHOS Suite](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/download/v26.3.4/GIB2A-Xicoy-ProHub-Widget-V26.3.4-ETHOS-Suite.zip)
 
 > **Important :** désinstallez toute version précédente de GIB2A avant d’installer V26.3.4.
 
@@ -51,11 +51,15 @@ La compatibilité JetMunt n’est pas revendiquée faute de démonstration.
 
 ## Installation
 
-Pour l’installation manuelle, extraire le paquet SD afin d’obtenir exactement
+Pour l’installation manuelle, télécharger le
+[package SD](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/download/v26.3.4/GIB2A-Xicoy-ProHub-Widget-V26.3.4-SD.zip)
+et l’extraire afin d’obtenir exactement
 `SCRIPTS/GIB2A/main.lua` et
 `SCRIPTS/GIB2A/gib2a_logo_ethos_180.png`, redémarrer la radio puis ajouter le
 widget `GIB2A`.
-Pour ETHOS Suite, utiliser l’archive Suite dédiée dont le schéma de manifeste et
+Pour ETHOS Suite, utiliser le
+[package ETHOS Suite](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/download/v26.3.4/GIB2A-Xicoy-ProHub-Widget-V26.3.4-ETHOS-Suite.zip)
+dédié dont le schéma de manifeste et
 la structure à la racine proviennent du paquet officiel V1.1. Voir
 [Installation](docs/INSTALLATION.md).
 

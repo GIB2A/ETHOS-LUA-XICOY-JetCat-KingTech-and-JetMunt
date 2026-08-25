@@ -90,7 +90,14 @@ for path, value in tracked_text:
 check(not bad_links, "relative Markdown links" + (": " + ", ".join(bad_links) if bad_links else ""))
 
 release = ROOT / "releases" / "V26.3.4"
-for archive in sorted(release.glob("*.zip")) if release.exists() else []:
+release_archives = [
+    release / "GIB2A-Xicoy-ProHub-Widget-V26.3.4-SD.zip",
+    release / "GIB2A-Xicoy-ProHub-Widget-V26.3.4-ETHOS-Suite.zip",
+]
+for archive in release_archives:
+    if not archive.is_file():
+        check(False, f"{archive.name} exists")
+        continue
     try:
         with zipfile.ZipFile(archive) as zf:
             names = zf.namelist()
@@ -100,7 +107,7 @@ for archive in sorted(release.glob("*.zip")) if release.exists() else []:
                     "SCRIPTS/GIB2A/main.lua",
                     "SCRIPTS/GIB2A/gib2a_logo_ethos_180.png",
                 } and len(names) == 2, f"{archive.name} exact structure")
-            elif archive.name == "GIB2A_V26.3.4.zip" or archive.name.endswith("-ETHOS-Suite.zip"):
+            elif archive.name.endswith("-ETHOS-Suite.zip"):
                 expected = {
                     "CHANGELOG.md", "INSTALLATION.md", "README.md",
                     "ethos_lua_manifest.json", "main.lua",
