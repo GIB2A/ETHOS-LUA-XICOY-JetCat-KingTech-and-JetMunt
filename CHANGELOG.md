@@ -1,5 +1,19 @@
 # Changelog
 
+## [26.3.4] - 2026-08-25
+
+### Changed
+- strengthened recovery of invalid, renamed or temporarily unavailable telemetry sources
+- preserved voluntary Auto Bind behavior when changing Xicoy telemetry mode
+- prepared the validated ETHOS 26.1 radio baseline for public distribution
+
+### Fixed
+- corrected the JetCat PUMP gauge with a configurable 1.7 V default scale and 110% reserve zone
+- persisted the JetCat PUMP maximum setting
+
+### Validation
+- completed 39 ETHOS 26.1 radio tests with 39 PASS and 0 FAIL
+
 ## [26.3.2] - 2026-08-13
 
 ### Added

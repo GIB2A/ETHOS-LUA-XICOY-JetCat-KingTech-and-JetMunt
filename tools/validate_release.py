@@ -5,11 +5,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "src/GIB2A/main.lua"
 LOGO = ROOT / "src/GIB2A/gib2a_logo_ethos_180.png"
-EXPECTED_VERSION = "26.3.2"
-EXPECTED_HASH = "012B3B4AF8EFF22C144C7603F63E8FE75323034793B504A38BC1A3A5B7434FFD"
+EXPECTED_VERSION = "26.3.4"
+EXPECTED_HASH = "C02F8086BBAA85A90BD4C3CDC64D4C6F54FD5D6DD65BCCEE882B0717C67EFAC4"
 EXPECTED_LOGO_HASH = "14EDE1DE9DDE6F644000F1481DCA817C6E782E183D1AB7D9314FCA6D99F4FA7B"
-EXPECTED_SIZE = 86894
-EXPECTED_LINES = 2622
+EXPECTED_SIZE = 89101
+EXPECTED_LINES = 2690
 errors = []
 
 def check(ok, message):
@@ -30,7 +30,7 @@ except UnicodeDecodeError:
     text = ""
     check(False, "UTF-8")
 check(b"\r" not in raw, "LF line endings")
-check('local WIDGET_VERSION = "26.3.2"' in text, "internal version")
+check('local WIDGET_VERSION = "26.3.4"' in text, "internal version")
 check('local GIB2A_LOGO_PATH = "gib2a_logo_ethos_180.png"' in text, "logo path")
 check(re.search(r'key\s*=\s*"GIB2A"', text) is not None, "widget key")
 params_match = re.search(r"local PERSISTENCE_PARAMS = \{(.*?)\n\}", text, re.S)
@@ -78,7 +78,7 @@ for relative in release_files:
 check(not any(local_path_re.search(value) for _, value in tracked_text), "no local paths in release files")
 secret_re = re.compile(r"(ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16})")
 check(not any(secret_re.search(value) for _, value in tracked_text), "no obvious secrets")
-required_docs = ["README.md","README_FR.md","CHANGELOG.md","docs/COMPATIBILITY.md","docs/CONFIGURATION.md","docs/INSTALLATION.md","docs/DISCLAIMER.md","docs/TROUBLESHOOTING.md","docs/release-notes/V26.3.2.md"]
+required_docs = ["README.md","README_FR.md","CHANGELOG.md","docs/COMPATIBILITY.md","docs/CONFIGURATION.md","docs/INSTALLATION.md","docs/DISCLAIMER.md","docs/TROUBLESHOOTING.md","docs/release-notes/V26.3.4.md"]
 check(all((ROOT / item).is_file() for item in required_docs), "required documentation")
 bad_links = []
 link_re = re.compile(r"\[[^\]]+\]\((?!https?://|mailto:|#)([^)]+)\)")
@@ -89,7 +89,7 @@ for path, value in tracked_text:
         if clean and not (path.parent / clean).resolve().exists(): bad_links.append(f"{path.relative_to(ROOT)} -> {link}")
 check(not bad_links, "relative Markdown links" + (": " + ", ".join(bad_links) if bad_links else ""))
 
-release = ROOT / "releases" / "V26.3.2"
+release = ROOT / "releases" / "V26.3.4"
 for archive in sorted(release.glob("*.zip")) if release.exists() else []:
     try:
         with zipfile.ZipFile(archive) as zf:

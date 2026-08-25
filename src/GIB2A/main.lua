@@ -1,4 +1,4 @@
--- GIB2A TURBINE Widjet V26.3.2
+-- GIB2A TURBINE Widjet V26.3.4
 -- Widget de télémétrie turbine multi-ECU pour ETHOS
 -- Compatibilité Xicoy ProHub, Enjet, Linton, KingTech, Swiwin et JetCat
 -- Modes Xicoy Basic, Extended et Maximum avec auto-bind des capteurs
@@ -38,7 +38,7 @@ local TELEMETRY_MODE_BASIC = 0
 local TELEMETRY_MODE_EXTENDED = 1
 local TELEMETRY_MODE_MAXIMUM = 2
 local SETUP_MODE_SCHEMA = 2
-local WIDGET_VERSION = "26.3.2"
+local WIDGET_VERSION = "26.3.4"
 local FUEL_YELLOW_THRESHOLD = 50
 local FUEL_RED_THRESHOLD = 25
 local GIB2A_LOGO_PATH = "gib2a_logo_ethos_180.png"
@@ -64,6 +64,7 @@ end
 -- Xicoy pump telemetry uses a voltage-like value.
 -- 12.6 telemetry units = 1260 pump RPM = 100%.
 local XICOY_PUMP_RAW_MAX = 12.6
+local JETCAT_PUMP_DEFAULT_MAX = 1.7
 
 local PERSISTENCE_PARAMS = {
     { key = "chronoSource", default = nil },
@@ -157,6 +158,7 @@ local function create(zone, options)
         _fuelPercent             = nil,                       -- valeur interne %% (calculée)
         _fuelDisplayValue        = nil,
         xicoyFuelStartPercent    = 100,
+        jetCatPumpMax            = JETCAT_PUMP_DEFAULT_MAX,
         fuelMax                  = 100,                       -- Basic : 100%% = plein (Xicoy Fuel %)
         _flameOutArmed           = false,                     -- armement apres moteur en fonctionnement
         _restartArmed            = false,
@@ -1537,9 +1539,9 @@ local function drawMainGauge(cx, cy, radius, value, label, unit, percent, palett
     end
 end
 
-local function drawPumpGauge(cx, cy, radius, value, percent, palette, compact, label)
+local function drawPumpGauge(cx, cy, radius, value, percent, palette, compact, label, maxPercent)
     label = label or "PUMP"
-    drawSegmentedGauge(cx, cy, radius, percent, 100, palette)
+    drawSegmentedGauge(cx, cy, radius, percent, maxPercent or 100, palette)
     drawCentered(cx, cy - (compact and 22 or 29), value,
         compact and FONT_L or FONT_XL, palette.textColor)
     drawCentered(cx, cy + (compact and 4 or 6), label,
@@ -1703,7 +1705,14 @@ local function paint(widget)
     local pumpRaw = type(widget.adc4Value) == "number" and widget.adc4Value or nil
     local rpmMax = widget.rpmMax and widget.rpmMax > 0 and widget.rpmMax or 160000
     local egtMax = widget.egtMax and widget.egtMax >= 200 and widget.egtMax or 700
-    local pumpMax = widget.ecuType == 0 and XICOY_PUMP_RAW_MAX or (widget.pumpMax or 100)
+    local pumpMax
+    if widget.ecuType == 0 then
+        pumpMax = XICOY_PUMP_RAW_MAX
+    elseif widget.ecuType == 1 then
+        pumpMax = widget.jetCatPumpMax or JETCAT_PUMP_DEFAULT_MAX
+    else
+        pumpMax = widget.pumpMax or 100
+    end
     drawMainGauge(math.floor(w * 0.235), gaugeY, bigR, dashboardValue(rpm), "RPM", "",
         mapToPercentRaw(rpm, rpmMax), palette, compact)
     drawMainGauge(math.floor(w * 0.765), gaugeY, bigR, dashboardValue(egt), "EGT", "",
@@ -1719,9 +1728,17 @@ local function paint(widget)
     else
         pumpText = dashboardValue(pumpDisplay)
     end
+    local pumpPercent
+    local pumpGaugeMaxPercent = 100
+    if widget.ecuType == 1 then
+        pumpPercent = mapToPercentRaw(pumpRaw, pumpMax)
+        pumpGaugeMaxPercent = 110
+    else
+        pumpPercent = clamp01(mapToPercentRaw(pumpRaw, pumpMax))
+    end
     drawPumpGauge(centerX, pumpY, pumpR,
-        pumpText, clamp01(mapToPercentRaw(pumpRaw, pumpMax)),
-        palette, compact, pumpLabel)
+        pumpText, pumpPercent, palette, compact, pumpLabel,
+        pumpGaugeMaxPercent)
     drawFuelFlow(centerX, pumpY + pumpR + (compact and 2 or 4), widget, palette, compact)
 
     local fuelAreaX = margin
@@ -1776,6 +1793,17 @@ local function clearEcuTelemetryBindings(widget)
     widget._autoBindStatus = nil
 end
 
+local function changeXicoyTelemetryMode(widget, newMode)
+    local oldMode = widget.telemetryMode or TELEMETRY_MODE_BASIC
+    if widget.ecuType ~= 0 or oldMode == newMode then
+        return false
+    end
+
+    clearEcuTelemetryBindings(widget)
+    widget.telemetryMode = newMode
+    return true
+end
+
 local function buildConfig(widget)
     local line
     local ecuChoices = {
@@ -1825,8 +1853,7 @@ local function buildConfig(widget)
                     newMode = TELEMETRY_MODE_MAXIMUM
                 end
 
-                if (widget.telemetryMode or TELEMETRY_MODE_BASIC) ~= newMode then
-                    widget.telemetryMode = newMode
+                if changeXicoyTelemetryMode(widget, newMode) then
                     -- Rebuild form so optional fields appear/disappear immediately
                     if form.clear then
                         form.clear()
@@ -1849,8 +1876,7 @@ local function buildConfig(widget)
                     newMode = TELEMETRY_MODE_MAXIMUM
                 end
 
-                if (widget.telemetryMode or TELEMETRY_MODE_BASIC) ~= newMode then
-                    widget.telemetryMode = newMode
+                if changeXicoyTelemetryMode(widget, newMode) then
                     if form.clear then
                         form.clear()
                         buildConfig(widget)
@@ -2025,10 +2051,20 @@ local function buildConfig(widget)
             function() return widget.engineCurrentSource end,
             function(v) widget.engineCurrentSource = v end)
 
+        line = form.addLine("Pump Flow Sensor")
+        form.addSourceField(line, nil,
+            function() return widget.fuelFlowSource end,
+            function(v) widget.fuelFlowSource = v end)
+
         line = form.addLine("Fuel Consumption Sensor")
         form.addSourceField(line, nil,
             function() return widget.fuelConsumptionSource end,
             function(v) widget.fuelConsumptionSource = v end)
+
+        line = form.addLine("Pressure Sensor")
+        form.addSourceField(line, nil,
+            function() return widget.pressSource end,
+            function(v) widget.pressSource = v end)
     elseif widget.ecuType == 1 then
         line = form.addLine("ECU Current Sensor")
         form.addSourceField(line, nil,
@@ -2056,14 +2092,35 @@ local function buildConfig(widget)
         local pumpMaxLabel = widget.ecuType == 1
             and "Pump Max Voltage (100%)" or "Pump Max (100%)"
         line = form.addLine(pumpMaxLabel)
-        local pumpField = form.addNumberField(line, nil, 1, 1000,
-            function() return widget.pumpMax or 100 end,
-            function(v) widget.pumpMax = v end)
-        if widget.ecuType == 1 and pumpField and pumpField.suffix then
-            pumpField:suffix("V")
-        end
-        if pumpField and pumpField.step then
-            pumpField:step(1)
+        local pumpField
+        if widget.ecuType == 1 then
+            pumpField = form.addNumberField(line, nil, 1, 1000,
+                function()
+                    return math.floor(
+                        (widget.jetCatPumpMax or JETCAT_PUMP_DEFAULT_MAX) * 10
+                        + 0.5
+                    )
+                end,
+                function(v) widget.jetCatPumpMax = v / 10 end)
+            if pumpField and pumpField.default then
+                pumpField:default(17)
+            end
+            if pumpField and pumpField.decimals then
+                pumpField:decimals(1)
+            end
+            if pumpField and pumpField.suffix then
+                pumpField:suffix("V")
+            end
+            if pumpField and pumpField.step then
+                pumpField:step(1)
+            end
+        else
+            pumpField = form.addNumberField(line, nil, 1, 1000,
+                function() return widget.pumpMax or 100 end,
+                function(v) widget.pumpMax = v end)
+            if pumpField and pumpField.step then
+                pumpField:step(1)
+            end
         end
     end
 
@@ -2573,6 +2630,13 @@ local function read(widget)
 
     readStandardParams(widget, 36, 37)
 
+    local storedJetCatPumpMax = storage.read("jetCatPumpMax")
+    if type(storedJetCatPumpMax) == "number" and storedJetCatPumpMax > 0 then
+        widget.jetCatPumpMax = storedJetCatPumpMax
+    else
+        widget.jetCatPumpMax = JETCAT_PUMP_DEFAULT_MAX
+    end
+
 end
 
 local function writeStandardParams(widget, firstIndex, lastIndex)
@@ -2599,6 +2663,10 @@ local function write(widget)
         widget.fuelColorSoundAlertsEnabled ~= false
     )
     writeStandardParams(widget, 36, 37)
+    storage.write(
+        "jetCatPumpMax",
+        widget.jetCatPumpMax or JETCAT_PUMP_DEFAULT_MAX
+    )
 end
 
 -------------------------------------------------------------
