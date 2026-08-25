@@ -39,15 +39,24 @@ def make_zip(path, entries):
         if len(logos) != 1 or hashlib.sha256(zf.read(logos[0])).hexdigest().upper() != EXPECTED_LOGO_HASH:
             raise SystemExit(f"Extracted logo validation failed: {path.name}")
 
+manifest = ROOT / "packaging/ethos_lua_manifest.json"
 direct = out / "GIB2A_V26.3.4.zip"
-direct_entries = [
-    ("GIB2A/main.lua", raw),
-    ("GIB2A/gib2a_logo_ethos_180.png", logo_raw),
-]
+suite_entries = None
+if manifest.exists():
+    suite_entries = [
+        ("ethos_lua_manifest.json", manifest.read_bytes()),
+        ("main.lua", raw),
+        ("gib2a_logo_ethos_180.png", logo_raw),
+        ("README.md", (ROOT / "README.md").read_bytes()),
+        ("CHANGELOG.md", (ROOT / "CHANGELOG.md").read_bytes()),
+        ("INSTALLATION.md", (ROOT / "docs/INSTALLATION.md").read_bytes()),
+    ]
 if "--direct-only" in sys.argv:
-    make_zip(direct, direct_entries)
+    if suite_entries is None:
+        raise SystemExit("Direct ZIP requires the validated ETHOS Suite manifest")
+    make_zip(direct, suite_entries)
     print(f"{direct.name}: {direct.stat().st_size} bytes, SHA-256 {hashlib.sha256(direct.read_bytes()).hexdigest().upper()}")
-    print("Direct build: PASS")
+    print("Direct ETHOS Suite build: PASS")
     sys.exit(0)
 
 sd = out / "GIB2A-Xicoy-ProHub-Widget-V26.3.4-SD.zip"
@@ -55,20 +64,12 @@ make_zip(sd, [
     ("SCRIPTS/GIB2A/main.lua", raw),
     ("SCRIPTS/GIB2A/gib2a_logo_ethos_180.png", logo_raw),
 ])
-make_zip(direct, direct_entries)
-archives = [sd, direct]
-manifest = ROOT / "packaging/ethos_lua_manifest.json"
-if manifest.exists():
+archives = [sd]
+if suite_entries is not None:
     suite = out / "GIB2A-Xicoy-ProHub-Widget-V26.3.4-ETHOS-Suite.zip"
-    make_zip(suite, [
-        ("ethos_lua_manifest.json", manifest.read_bytes()),
-        ("main.lua", raw),
-        ("gib2a_logo_ethos_180.png", logo_raw),
-        ("README.md", (ROOT / "README.md").read_bytes()),
-        ("CHANGELOG.md", (ROOT / "CHANGELOG.md").read_bytes()),
-        ("INSTALLATION.md", (ROOT / "docs/INSTALLATION.md").read_bytes()),
-    ])
-    archives.append(suite)
+    make_zip(suite, suite_entries)
+    make_zip(direct, suite_entries)
+    archives.extend([suite, direct])
 else:
     print("SKIP: no validated ETHOS Suite manifest; manual SD package only")
 lines = [f"{hashlib.sha256(path.read_bytes()).hexdigest().upper()}  {path.name}" for path in sorted(archives)]
