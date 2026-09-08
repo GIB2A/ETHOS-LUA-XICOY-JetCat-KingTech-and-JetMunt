@@ -12,7 +12,7 @@ The menu order differs, but maps to these internal values.
 
 JetCat Engine 1 auto-bind supports EngRpm1, EngEgt1, EngPumpV1, EngEcuV1,
 EngCurrent1, EngFuel1, EngFuelFlow1, EngAlt1, EngBattCap1, EngShaftRpm1 and
-EngState1. Engine 2, 3 and 4 are not automatically bound in V26.3.4.
+EngState1. Engine 2, 3 and 4 are not automatically bound in V26.3.5.
 
 Radio THR is converted from ETHOS `-1024..+1024` to `0..100%`. Xicoy Fuel Level
 After Restart can reset the displayed starting level. Default configurable fuel

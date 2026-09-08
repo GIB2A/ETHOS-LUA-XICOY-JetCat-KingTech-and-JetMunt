@@ -1,4 +1,4 @@
--- GIB2A TURBINE Widjet V26.3.4
+-- GIB2A TURBINE Widjet V26.3.5
 -- Widget de télémétrie turbine multi-ECU pour ETHOS
 -- Compatibilité Xicoy ProHub, Enjet, Linton, KingTech, Swiwin et JetCat
 -- Modes Xicoy Basic, Extended et Maximum avec auto-bind des capteurs
@@ -38,7 +38,7 @@ local TELEMETRY_MODE_BASIC = 0
 local TELEMETRY_MODE_EXTENDED = 1
 local TELEMETRY_MODE_MAXIMUM = 2
 local SETUP_MODE_SCHEMA = 2
-local WIDGET_VERSION = "26.3.4"
+local WIDGET_VERSION = "26.3.5"
 local FUEL_YELLOW_THRESHOLD = 50
 local FUEL_RED_THRESHOLD = 25
 local GIB2A_LOGO_PATH = "gib2a_logo_ethos_180.png"
@@ -46,6 +46,8 @@ local GIB2A_LOGO_WIDTH = 130
 local GIB2A_LOGO_HEIGHT = 57
 local GIB2A_LOGO_COMPACT_WIDTH = 90
 local GIB2A_LOGO_COMPACT_HEIGHT = 40
+local GIB2A_LOGO_SMALL_WIDTH = 55
+local GIB2A_LOGO_SMALL_HEIGHT = 24
 local gib2aLogo = nil
 
 local function loadGib2aLogo()
@@ -260,11 +262,11 @@ local msg_table_Enjet = {
     [0]  = "Stopped",
     [1]  = "Starting",
     [2]  = "Running",
-    [3]  = "Cooling",
-    [4]  = "Flameout Restart",
+    [3]  = "Low Temp",
+    [4]  = "Shutdown / Restart",
     [7]  = "Component Test",
     [8]  = "RC Calibration",
-    [9]  = "Flameout Restart",
+    [9]  = "Shutdown / Restart",
     [11] = "Engine Ready",
     [33] = "Startup Stage 1",
     [34] = "Startup Stage 2",
@@ -818,15 +820,18 @@ local xicoyProHubAppIds = {
 }
 
 local enjetAppIds = {
-    { field = "rpmSource",             appId = 0x0200 },
-    { field = "temp1Source",           appId = 0x0201 },
-    { field = "adc3Source",            appId = 0x0202 },
-    { field = "engineCurrentSource",   appId = 0x0203 },
-    { field = "temp2Source",           appId = 0x0204 },
-    { field = "fuelFlowSource",        appId = 0x0205 },
-    { field = "fuelConsumptionSource", appId = 0x0206 },
-    { field = "adc4Source",            appId = 0x0207 },
-    { field = "pressSource",           appId = 0x0208 },
+    -- ENJET V1.53: standard FrSky sensors are discovered by ETHOS.
+    -- Only IDs confirmed by existing GIB2A mappings or ENJET V1.53 are used.
+    -- Exact names are the mono-turbine sensors observed at JetPower 2026.
+    { field = "rpmSource",             appId = 0x0500, name = "RMP" },
+    { field = "temp1Source",           appId = 0x0400, name = "Temp1" },
+    { field = "adc3Source",            appId = 0x0210, name = "ADC2" },
+    { field = "engineCurrentSource",   appId = 0x0200, name = "Bat1 current" },
+    { field = "temp2Source",           appId = 0xFF00, name = "DIY FF00" },
+    { field = "adc4Source",            appId = 0xFF10, name = "DIY FF10" },
+    { field = "pressSource",                           name = "H.pressure" },
+    { field = "fuelFlowSource",                       name = "GASS flow" },
+    { field = "fuelConsumptionSource",                name = "GASS res. vol." },
 }
 
 local jetcatEngine1AppIds = {
@@ -893,6 +898,24 @@ local function safeGetTelemetrySourceByName(name)
     end
 
     return nil
+end
+
+local function normalizedExactSourceName(src)
+    if not src or type(src.name) ~= "function" then
+        return nil
+    end
+
+    local okName, name = pcall(src.name, src)
+    if not okName or type(name) ~= "string" then
+        return nil
+    end
+
+    name = name:gsub("^%s+", ""):gsub("%s+$", "")
+    if name == "" then
+        return nil
+    end
+
+    return string.lower(name)
 end
 
 local function autoBindXicoyProHub(widget)
@@ -968,12 +991,55 @@ local function autoBindEnjetDTA(widget)
     local map = enjetAppIds
     local total = map and #map or 0
     local bound = 0
+    local boundFields = {}
+    local usedSources = {}
+
+    -- Pass 1: confirmed AppIDs remain authoritative.
     if total > 0 then
         for _, item in ipairs(map) do
-            local sensor = safeSportGetSensorByAppId(item.appId)
-            if sensor then
+            local sensor = item.appId
+                and safeSportGetSensorByAppId(item.appId) or nil
+            if sensor and not usedSources[sensor] then
                 widget[item.field] = sensor
+                boundFields[item.field] = true
+                usedSources[sensor] = true
                 bound = bound + 1
+            end
+        end
+    end
+
+    -- Pass 2 (ETHOS 26.1+): exact, unique JetPower names for unresolved fields.
+    if bound < total and system.getSources and CATEGORY_TELEMETRY_SENSOR then
+        local okSources, sources = pcall(
+            system.getSources,
+            CATEGORY_TELEMETRY_SENSOR
+        )
+
+        if okSources and type(sources) == "table" then
+            local sourcesByName = {}
+            for _, source in ipairs(sources) do
+                if isUsableSource(source) then
+                    local name = normalizedExactSourceName(source)
+                    if name then
+                        if sourcesByName[name] == nil then
+                            sourcesByName[name] = source
+                        else
+                            sourcesByName[name] = false
+                        end
+                    end
+                end
+            end
+
+            for _, item in ipairs(map) do
+                if not boundFields[item.field] then
+                    local sensor = sourcesByName[string.lower(item.name)]
+                    if sensor and not usedSources[sensor] then
+                        widget[item.field] = sensor
+                        boundFields[item.field] = true
+                        usedSources[sensor] = true
+                        bound = bound + 1
+                    end
+                end
             end
         end
     end
@@ -1415,9 +1481,11 @@ local function drawTelemetryPanel(x, y, width, rows, availableHeight, palette, c
     end
 end
 
-local function fitStatusFont(text, maxWidth, compact)
+local function fitStatusFont(text, maxWidth, compact, small)
     local fonts
-    if compact then
+    if small then
+        fonts = { FONT_L, FONT_STD, FONT_XS, FONT_XXS }
+    elseif compact then
         fonts = { FONT_XL, FONT_L, FONT_STD, FONT_XS, FONT_XXS }
     else
         fonts = { FONT_XXL, FONT_XL, FONT_L, FONT_STD, FONT_XS, FONT_XXS }
@@ -1434,17 +1502,17 @@ local function fitStatusFont(text, maxWidth, compact)
     return FONT_XXS
 end
 
-local function drawStatusHeader(cx, y, status, chrono, width, palette, compact)
+local function drawStatusHeader(cx, y, status, chrono, width, palette, compact, small)
     local statusText = string.upper(status or "NO DATA")
     local statusBgColor = lcd.RGB(52, 56, 60)
-    local horizontalPadding = compact and 26 or 40
+    local horizontalPadding = small and 16 or (compact and 26 or 40)
     local minimumFrameW = math.floor(width * 0.92)
     local frameW = width
     local availableTextW = math.max(1, frameW - horizontalPadding)
-    local statusFont = fitStatusFont(statusText, availableTextW, compact)
+    local statusFont = fitStatusFont(statusText, availableTextW, compact, small)
     lcd.font(statusFont)
     local statusW, statusH = lcd.getTextSize(statusText)
-    local frameH = compact and 54 or 72
+    local frameH = small and 40 or (compact and 54 or 72)
     local frameX = math.floor(cx - frameW / 2)
     local statusCx = frameX + frameW / 2
     local opticalOffset = compact and 1 or 2
@@ -1461,21 +1529,23 @@ local function drawStatusHeader(cx, y, status, chrono, width, palette, compact)
 
     drawCentered(statusCx, statusY, statusText, statusFont, palette.textColor)
 
-    local chronoY = y + frameH + (compact and 7 or 9)
-    local chronoFont = compact and FONT_XL or FONT_XXL
+    local chronoY = y + frameH + (small and 3 or (compact and 7 or 9))
+    local chronoFont = small and FONT_L or (compact and FONT_XL or FONT_XXL)
     drawCentered(cx, chronoY, chrono, chronoFont, palette.textColor)
     lcd.font(chronoFont)
     local _, chronoValueH = lcd.getTextSize(chrono)
     return chronoY + chronoValueH
 end
 
-local function drawGib2aLogo(centerX, y, compact)
+local function drawGib2aLogo(centerX, y, compact, small)
     if gib2aLogo == nil or not lcd.drawBitmap then
         return
     end
 
-    local logoW = compact and GIB2A_LOGO_COMPACT_WIDTH or GIB2A_LOGO_WIDTH
-    local logoH = compact and GIB2A_LOGO_COMPACT_HEIGHT or GIB2A_LOGO_HEIGHT
+    local logoW = small and GIB2A_LOGO_SMALL_WIDTH
+        or (compact and GIB2A_LOGO_COMPACT_WIDTH or GIB2A_LOGO_WIDTH)
+    local logoH = small and GIB2A_LOGO_SMALL_HEIGHT
+        or (compact and GIB2A_LOGO_COMPACT_HEIGHT or GIB2A_LOGO_HEIGHT)
     lcd.drawBitmap(math.floor(centerX - logoW / 2), math.floor(y), gib2aLogo, logoW, logoH)
 end
 
@@ -1525,12 +1595,41 @@ local function drawSegmentedGauge(cx, cy, radius, percent, maxPercent, palette)
     end
 end
 
+local GAUGE_VALUE_FONTS = {
+    FONT_XXL, FONT_XL, FONT_L, FONT_STD, FONT_XS, FONT_XXS
+}
+
+local function fitGaugeValueFont(text, maxWidth, maxHeight, firstFont)
+    local fallback = GAUGE_VALUE_FONTS[#GAUGE_VALUE_FONTS]
+    for i = firstFont, #GAUGE_VALUE_FONTS do
+        local font = GAUGE_VALUE_FONTS[i]
+        lcd.font(font)
+        local textW, textH = lcd.getTextSize(text)
+        if textW <= maxWidth and textH <= maxHeight then
+            return font, textW, textH
+        end
+    end
+
+    lcd.font(fallback)
+    local textW, textH = lcd.getTextSize(text)
+    return fallback, textW, textH
+end
+
 local function drawMainGauge(cx, cy, radius, value, label, unit, percent, palette, compact)
     drawSegmentedGauge(cx, cy, radius, percent, 110, palette)
-    drawCentered(cx, cy - (compact and 21 or 30), value,
-        compact and FONT_XL or FONT_XXL, palette.textColor)
     local labelY = unit ~= "" and (cy + (compact and 3 or 6))
         or (cy + (compact and 8 or 14))
+    local innerRadius = radius - math.max(5, math.floor(radius * 0.13))
+    local valueGap = 3
+    local maxValueWidth = math.max(1, innerRadius * 2 - 8)
+    local maxValueHeight = math.max(1,
+        labelY - valueGap - (cy - innerRadius))
+    local valueFont, valueW, valueH = fitGaugeValueFont(
+        value, maxValueWidth, maxValueHeight, compact and 2 or 1)
+    local valueY = labelY - valueH - valueGap
+    lcd.font(valueFont)
+    lcd.color(palette.textColor)
+    lcd.drawText(math.floor(cx - valueW / 2), math.floor(valueY), value, 0)
     drawCentered(cx, labelY, label,
         compact and FONT_XS or FONT_STD, palette.textColor)
     if unit ~= "" then
@@ -1542,9 +1641,19 @@ end
 local function drawPumpGauge(cx, cy, radius, value, percent, palette, compact, label, maxPercent)
     label = label or "PUMP"
     drawSegmentedGauge(cx, cy, radius, percent, maxPercent or 100, palette)
-    drawCentered(cx, cy - (compact and 22 or 29), value,
-        compact and FONT_L or FONT_XL, palette.textColor)
-    drawCentered(cx, cy + (compact and 4 or 6), label,
+    local labelY = cy + (compact and 4 or 6)
+    local innerRadius = radius - math.max(5, math.floor(radius * 0.13))
+    local valueGap = 3
+    local maxValueWidth = math.max(1, innerRadius * 2 - 8)
+    local maxValueHeight = math.max(1,
+        labelY - valueGap - (cy - innerRadius))
+    local valueFont, valueW, valueH = fitGaugeValueFont(
+        value, maxValueWidth, maxValueHeight, compact and 3 or 2)
+    local valueY = labelY - valueH - valueGap
+    lcd.font(valueFont)
+    lcd.color(palette.textColor)
+    lcd.drawText(math.floor(cx - valueW / 2), math.floor(valueY), value, 0)
+    drawCentered(cx, labelY, label,
         compact and FONT_XXS or FONT_XS, palette.textColor)
 end
 
@@ -1611,23 +1720,76 @@ local function drawFuelGauge(x, y, width, percent, value, palette, compact)
     end
 end
 
+local function getDashboardLayout(w, h)
+    local margin = math.max(5, math.floor(w * 0.012))
+
+    -- FULL keeps the validated 800x480 geometry unchanged.
+    if w >= 700 and h >= 430 then
+        local bigR = math.floor(math.min(w * 0.17, h * 0.25))
+        return false, false, margin,
+            math.floor(h * 0.58), bigR,
+            math.floor(h * 0.65), math.floor(bigR * 0.59),
+            math.floor(h * 0.89), true
+    end
+
+    local fuelY = h - 32
+    local small = h < 300
+    local pumpR
+    local pumpY
+    local gaugeTop
+    local gaugeBottom
+
+    if small then
+        pumpR = math.max(18, math.floor(math.min(w * 0.055, h * 0.09)))
+        pumpY = fuelY - pumpR - 20
+        gaugeTop = 100
+        gaugeBottom = pumpY - pumpR - 4
+    else
+        pumpR = math.max(24, math.floor(math.min(w * 0.075, h * 0.10)))
+        pumpY = fuelY - pumpR - 22
+        gaugeTop = 115
+        gaugeBottom = pumpY - pumpR - 5
+    end
+
+    local availableGaugeHeight = math.max(2, gaugeBottom - gaugeTop)
+    local bigR = math.floor(math.min(
+        w * (small and 0.105 or 0.13),
+        availableGaugeHeight / 2
+    ))
+    if not small and w >= 600 then
+        -- MEDIUM large: use the extra X14-class space without fixed pixels.
+        bigR = math.floor(math.min(w * 0.115625, h * 0.20556))
+        pumpR = math.floor(math.min(w * 0.078125, h * 0.13889))
+    end
+    local gaugeY = math.floor((gaugeTop + gaugeBottom) / 2)
+    if not small then
+        -- MEDIUM: align the three gauges lower and free the side panels.
+        gaugeY = math.floor(h * 0.63)
+        pumpY = gaugeY
+    end
+    local showPanels = (not small) and w >= 600 and h >= 320
+
+    return true, small, margin, gaugeY, bigR,
+        pumpY, pumpR, fuelY, showPanels
+end
+
 local function paint(widget)
     local w, h = lcd.getWindowSize()
     local palette = getPalette(widget.theme or 0)
     lcd.color(palette.bgColor)
     lcd.drawFilledRectangle(0, 0, w, h)
-    local compact = w < 700 or h < 430
-    local margin, centerX = math.max(5, math.floor(w * 0.012)), math.floor(w / 2)
+    local compact, small, margin, gaugeY, bigR,
+        pumpY, pumpR, fuelY, showPanels = getDashboardLayout(w, h)
+    local centerX = math.floor(w / 2)
     local panelW = math.floor(w * 0.255)
-    local gaugeY = math.floor(h * (compact and 0.60 or 0.58))
-    local bigR = math.floor(math.min(w * 0.17, h * (compact and 0.225 or 0.25)))
     local panelAvailableHeight = math.max(1, gaugeY - bigR - margin - 2)
 
     local headerBottomY = drawStatusHeader(centerX, margin, getStatusText(widget.ecuType, widget.temp2Value),
-        fmtTimeMMSS(widget.chronoValue), math.floor(w * (compact and 0.38 or 0.40)), palette, compact)
-    drawGib2aLogo(centerX, headerBottomY + (compact and 3 or 5), compact)
+        fmtTimeMMSS(widget.chronoValue), math.floor(w * (small and 0.46 or (compact and 0.38 or 0.40))),
+        palette, compact, small)
+    drawGib2aLogo(centerX, headerBottomY + (small and 1 or (compact and 3 or 5)), compact, small)
 
-    if w >= 600 and h >= 360 then
+    if showPanels then
         local pressureUnit = widget.ecuType == 5 and "kPa" or "mBar"
         local leftRows = {}
         if widget.ambTempSource ~= nil then
@@ -1717,8 +1879,6 @@ local function paint(widget)
         mapToPercentRaw(rpm, rpmMax), palette, compact)
     drawMainGauge(math.floor(w * 0.765), gaugeY, bigR, dashboardValue(egt), "EGT", "",
         mapToPercentRaw(egt, egtMax), palette, compact)
-    local pumpY = math.floor(h * (compact and 0.66 or 0.65))
-    local pumpR = math.floor(bigR * 0.59)
     local pumpDisplay = decodePumpDisplayValue(widget.ecuType, pumpRaw)
     local pumpText
     local pumpLabel = "PUMP"
@@ -1739,12 +1899,16 @@ local function paint(widget)
     drawPumpGauge(centerX, pumpY, pumpR,
         pumpText, pumpPercent, palette, compact, pumpLabel,
         pumpGaugeMaxPercent)
-    drawFuelFlow(centerX, pumpY + pumpR + (compact and 2 or 4), widget, palette, compact)
+    local fuelFlowGap = compact and 2 or 4
+    if compact and not small and w >= 600 then
+        fuelFlowGap = 16
+    end
+    drawFuelFlow(centerX, pumpY + pumpR + fuelFlowGap, widget, palette, compact)
 
     local fuelAreaX = margin
     local fuelAreaW = w - 2 * margin
     drawFuelGauge(fuelAreaX,
-        math.floor(h * (compact and 0.90 or 0.89)), fuelAreaW, clamp01(widget._fuelPercent),
+        fuelY, fuelAreaW, clamp01(widget._fuelPercent),
         dashboardValue(widget._fuelDisplayValue or widget.fuelValue), palette, compact)
 end
 

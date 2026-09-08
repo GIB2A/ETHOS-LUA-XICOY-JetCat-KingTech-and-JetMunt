@@ -2,10 +2,10 @@
   "manifestVersion": 1,
   "name": "GIB2A Xicoy ProHub Telemetry Widget",
   "key": "com.gib2a.ethos.xicoyprohub",
-  "version": "26.3.4",
+  "version": "26.3.5",
   "releaseNotes": {
     "format": "markdown",
-    "content": "## V26.3.4\n\n- Improved telemetry-source recovery.\n- Preserved voluntary Xicoy Auto Bind behavior.\n- Corrected and persisted the JetCat PUMP gauge scale.\n- Validated on ETHOS 26.1: 39 PASS, 0 FAIL."
+    "content": "## V26.3.5\n\n- Added Enjet V1.53 mono-turbine Auto Bind fallback by exact sensor name.\n- Improved responsive layouts for X14/X14RS and X18/X18S.\n- Added gauge-value auto-fit and wide-layout telemetry panels.\n- Added JetCat and Xicoy FrSky Sensor ID reference sheets."
   },
   "folder": "GIB2A",
   "files": [

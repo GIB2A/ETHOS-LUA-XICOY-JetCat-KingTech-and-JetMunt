@@ -6,11 +6,11 @@ ROOT = Path(__file__).resolve().parents[1]
 VERSION = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
 SOURCE = ROOT / "src/GIB2A/main.lua"
 LOGO = ROOT / "src/GIB2A/gib2a_logo_ethos_180.png"
-EXPECTED_HASH = "C02F8086BBAA85A90BD4C3CDC64D4C6F54FD5D6DD65BCCEE882B0717C67EFAC4"
+EXPECTED_HASH = "AEC80CCE5A044B8D13F487E99E9CC49A8D90A5CEFAF1ED798B8DC1642B2E878E"
 EXPECTED_LOGO_HASH = "14EDE1DE9DDE6F644000F1481DCA817C6E782E183D1AB7D9314FCA6D99F4FA7B"
-EXPECTED_SIZE = 89101
-EXPECTED_LINES = 2690
-if VERSION != "26.3.4": raise SystemExit("Unexpected VERSION")
+EXPECTED_SIZE = 95004
+EXPECTED_LINES = 2854
+if VERSION != "26.3.5": raise SystemExit("Unexpected VERSION")
 raw = SOURCE.read_bytes()
 logo_raw = LOGO.read_bytes()
 if hashlib.sha256(raw).hexdigest().upper() != EXPECTED_HASH: raise SystemExit("Source hash mismatch")
@@ -19,9 +19,9 @@ if len(raw) != EXPECTED_SIZE or len(raw.splitlines()) != EXPECTED_LINES: raise S
 if raw.startswith(b"\xef\xbb\xbf") or b"\r" in raw: raise SystemExit("Source must be UTF-8 without BOM and LF-only")
 raw.decode("utf-8")
 
-out = ROOT / "releases" / "V26.3.4"
+out = ROOT / "releases" / "V26.3.5"
 out.mkdir(parents=True, exist_ok=True)
-timestamp = (2026, 8, 25, 0, 0, 0)
+timestamp = (2026, 9, 8, 0, 0, 0)
 
 def make_zip(path, entries):
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
@@ -51,21 +51,21 @@ suite_entries = [
     ("INSTALLATION.md", (ROOT / "docs/INSTALLATION.md").read_bytes()),
 ]
 
-sd = out / "GIB2A-Xicoy-ProHub-Widget-V26.3.4-SD.zip"
+sd = out / "GIB2A-Xicoy-ProHub-Widget-V26.3.5-SD.zip"
 make_zip(sd, [
     ("SCRIPTS/GIB2A/main.lua", raw),
     ("SCRIPTS/GIB2A/gib2a_logo_ethos_180.png", logo_raw),
 ])
-suite = out / "GIB2A-Xicoy-ProHub-Widget-V26.3.4-ETHOS-Suite.zip"
+suite = out / "GIB2A-Xicoy-ProHub-Widget-V26.3.5-ETHOS-Suite.zip"
 make_zip(suite, suite_entries)
 archives = [sd, suite]
 lines = [f"{hashlib.sha256(path.read_bytes()).hexdigest().upper()}  {path.name}" for path in sorted(archives)]
 (out / "SHA256SUMS.txt").write_text("\n".join(lines) + "\n", encoding="ascii", newline="\n")
 (out / "GITHUB_RELEASE_NOTES.md").write_bytes(
-    (ROOT / "docs/release-notes/V26.3.4.md").read_bytes()
+    (ROOT / "docs/release-notes/V26.3.5.md").read_bytes()
 )
 attachment_lines = "\n".join(f"- {path.name}" for path in sorted(archives))
-handoff = f"""GIB2A V26.3.4 — GitHub Desktop handoff
+handoff = f"""GIB2A V26.3.5 — GitHub Desktop handoff
 
 Local repository:
 {ROOT}
@@ -80,10 +80,10 @@ Branch:
 main
 
 Recommended commit message:
-Release GIB2A V26.3.4
+Release GIB2A V26.3.5
 
 Recommended commit description:
-Prepare the GIB2A V26.3.4 public release with the validated Lua source, external logo, updated documentation, release notes and reproducible SD and ETHOS Suite packages.
+Prepare the GIB2A V26.3.5 public release with the validated Lua source, external logo, updated documentation, release notes and reproducible SD and ETHOS Suite packages.
 
 Official release packages (2 ZIP files):
 {attachment_lines}
@@ -95,8 +95,8 @@ SD ZIP SHA-256: {hashlib.sha256(sd.read_bytes()).hexdigest().upper()}
 ETHOS Suite ZIP SHA-256: {hashlib.sha256(suite.read_bytes()).hexdigest().upper() if manifest.exists() else "not built"}
 Official main.lua SHA-256: {EXPECTED_HASH}
 
-Future release title: GIB2A V26.3.4
-Future tag: v26.3.4
+Future release title: GIB2A V26.3.5
+Future tag: v26.3.5
 
 Repository description:
 FrSky ETHOS Lua turbine telemetry widget for Xicoy ProHub with multi-ECU status support.
@@ -105,11 +105,11 @@ Topics:
 frsky, ethos, lua, telemetry, rc-jet, turbine, xicoy, jetcat, kingtech, swiwin, enjet, linton
 
 Before publication:
-- Radio validation completed: 39 PASS, 0 FAIL.
+- Complete final radio or simulator review before publication.
 - Create the commit in GitHub Desktop.
 - Publish the preparation branch.
 - Verify GitHub Actions.
-- Create tag v26.3.4.
+- Create tag v26.3.5.
 - Create the GitHub Release.
 - Attach both ZIP files and SHA256SUMS.txt.
 - Verify the public downloads.

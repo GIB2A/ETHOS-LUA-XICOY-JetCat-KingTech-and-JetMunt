@@ -23,6 +23,10 @@ __pycache__/
 /docs/phases/
 /docs/project/
 /docs/references/
+!/docs/references/
+/docs/references/*
+!/docs/references/GIB2A_JetCat_FrSky_Sensor_ID_Reference.pdf
+!/docs/references/GIB2A_Xicoy_ProHub_FrSky_Sensor_ID_Reference.pdf
 /docs/reports/
 /docs/specifications/
 /tools/check_audio_paths.ps1

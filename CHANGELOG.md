@@ -1,5 +1,22 @@
 # Changelog
 
+## [26.3.5] - 2026-09-08
+
+### Added
+- added exact-name fallback for unresolved Enjet V1.53 mono-turbine sensors after authoritative AppID matching
+- added standalone JetCat and corrected Xicoy ProHub FrSky Sensor ID reference sheets
+
+### Changed
+- adapted the dashboard layout for compact ETHOS window sizes used by X14/X14RS and X18/X18S radios
+- enlarged gauges on wide MEDIUM layouts while preserving the FULL 800x480 geometry
+- enabled telemetry side panels on wide layouts from 320 pixels of usable height
+- fitted RPM, EGT and PUMP values dynamically to the available gauge interior
+
+### Fixed
+- aligned Enjet status codes 3, 4 and 9 with the observed V1.53 states
+- prevented duplicate Enjet source assignment during two-pass Auto Bind
+- corrected Xicoy Pump RPM Extended documentation from 0x4403 to 0x4404
+
 ## [26.3.4] - 2026-08-25
 
 ### Changed
