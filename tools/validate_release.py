@@ -5,11 +5,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "src/GIB2A/main.lua"
 LOGO = ROOT / "src/GIB2A/gib2a_logo_ethos_180.png"
-EXPECTED_VERSION = "26.3.5"
-EXPECTED_HASH = "AEC80CCE5A044B8D13F487E99E9CC49A8D90A5CEFAF1ED798B8DC1642B2E878E"
+EXPECTED_VERSION = "26.3.6"
+EXPECTED_HASH = "9100C62CA45F5DF2ED5A608E6F23F245DA0958A69D5AD458164DBDB96963AB70"
 EXPECTED_LOGO_HASH = "14EDE1DE9DDE6F644000F1481DCA817C6E782E183D1AB7D9314FCA6D99F4FA7B"
-EXPECTED_SIZE = 95004
-EXPECTED_LINES = 2854
+EXPECTED_SIZE = 95632
+EXPECTED_LINES = 2865
 errors = []
 
 def check(ok, message):
@@ -30,9 +30,10 @@ except UnicodeDecodeError:
     text = ""
     check(False, "UTF-8")
 check(b"\r" not in raw, "LF line endings")
-check('local WIDGET_VERSION = "26.3.5"' in text, "internal version")
+check('local WIDGET_VERSION = "26.3.6"' in text, "internal version")
 check('local GIB2A_LOGO_PATH = "gib2a_logo_ethos_180.png"' in text, "logo path")
 check(re.search(r'key\s*=\s*"GIB2A"', text) is not None, "widget key")
+check('name       = "GIB2A TURBINE Widget V" .. WIDGET_VERSION' in text, "registered widget title")
 params_match = re.search(r"local PERSISTENCE_PARAMS = \{(.*?)\n\}", text, re.S)
 params = re.findall(r'key\s*=\s*"([^"]+)"', params_match.group(1)) if params_match else []
 direct_reads = re.findall(r'storage\.read\(\s*"([^"]+)"', text)
@@ -65,24 +66,53 @@ for executable in ("luac", "lua"):
 else:
     print("SKIP: Lua interpreter/compiler unavailable")
 
+def public_release_files():
+    git_root = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"], cwd=ROOT,
+        capture_output=True, text=True,
+    )
+    if git_root.returncode == 0 and Path(git_root.stdout.strip()).resolve() == ROOT.resolve():
+        return subprocess.run(
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+            cwd=ROOT, capture_output=True, text=True, check=True,
+        ).stdout.splitlines()
+
+    roots = ["README.md", "README_FR.md", "CHANGELOG.md", "VERSION",
+             "checksums", "docs", "packaging", "src", "tools"]
+    excluded = {
+        "tools/prepare_metadata.py", "tools/png_to_single_page_pdf.ps1",
+        "docs/references/GIB2A_JetCat_FrSky_Sensor_ID_Reference.png",
+        "docs/references/GIB2A_Xicoy_ProHub_FrSky_Sensor_ID_Reference.png",
+    }
+    files = []
+    for relative in roots:
+        path = ROOT / relative
+        candidates = [path] if path.is_file() else path.rglob("*") if path.is_dir() else []
+        files.extend(
+            str(item.relative_to(ROOT)).replace("\\", "/") for item in candidates
+            if item.is_file()
+            and str(item.relative_to(ROOT)).replace("\\", "/") not in excluded
+            and "__pycache__" not in item.parts
+            and "handoff" not in item.name.lower()
+            and item.suffix.lower() not in {".tmp", ".bak", ".orig"}
+        )
+    return files
+
 tracked_text = []
-release_files = subprocess.run(
-    ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
-    cwd=ROOT, capture_output=True, text=True, check=True,
-).stdout.splitlines()
+release_files = public_release_files()
 for relative in release_files:
     path = ROOT / relative
     if path.is_file() and path.suffix.lower() in {".md", ".py", ".ps1", ".yml", ".yaml", ".txt", ""}:
         try: tracked_text.append((path, path.read_text(encoding="utf-8")))
         except UnicodeDecodeError: pass
-check(not any(local_path_re.search(value) for _, value in tracked_text), "no local paths in release files")
+check(not any(local_path_re.search(value) for path, value in tracked_text if path.name != "GITHUB_DESKTOP_HANDOFF.txt"), "no local paths in release files")
 secret_re = re.compile(r"(ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16})")
 check(not any(secret_re.search(value) for _, value in tracked_text), "no obvious secrets")
 required_docs = [
     "README.md", "README_FR.md", "CHANGELOG.md",
     "docs/COMPATIBILITY.md", "docs/CONFIGURATION.md",
     "docs/INSTALLATION.md", "docs/DISCLAIMER.md",
-    "docs/TROUBLESHOOTING.md", "docs/release-notes/V26.3.5.md",
+    "docs/TROUBLESHOOTING.md", "docs/release-notes/V26.3.6.md",
     "docs/references/GIB2A_JetCat_FrSky_Sensor_ID_Reference.pdf",
     "docs/references/GIB2A_Xicoy_ProHub_FrSky_Sensor_ID_Reference.pdf",
 ]
@@ -104,10 +134,10 @@ for path, value in tracked_text:
         if clean and not (path.parent / clean).resolve().exists(): bad_links.append(f"{path.relative_to(ROOT)} -> {link}")
 check(not bad_links, "relative Markdown links" + (": " + ", ".join(bad_links) if bad_links else ""))
 
-release = ROOT / "releases" / "V26.3.5"
+release = ROOT / "releases" / "V26.3.6"
 release_archives = [
-    release / "GIB2A-Xicoy-ProHub-Widget-V26.3.5-SD.zip",
-    release / "GIB2A-Xicoy-ProHub-Widget-V26.3.5-ETHOS-Suite.zip",
+    release / "GIB2A-Xicoy-ProHub-Widget-V26.3.6-SD.zip",
+    release / "GIB2A-Xicoy-ProHub-Widget-V26.3.6-ETHOS-Suite.zip",
 ]
 for archive in release_archives:
     if not archive.is_file():
@@ -132,6 +162,8 @@ for archive in release_archives:
                 manifest = json.loads(zf.read("ethos_lua_manifest.json").decode("utf-8"))
                 check(
                     manifest.get("manifestVersion") == 1
+                    and manifest.get("name") == "GIB2A Turbine Telemetry Widget"
+                    and manifest.get("key") == "com.gib2a.ethos.turbinetelemetry"
                     and manifest.get("version") == EXPECTED_VERSION
                     and manifest.get("folder") == "GIB2A"
                     and manifest.get("files") == [
@@ -153,6 +185,14 @@ for archive in release_archives:
     except zipfile.BadZipFile:
         check(False, f"{archive.name} valid ZIP")
 
+checksum_file = release / "SHA256SUMS.txt"
+for line in checksum_file.read_text(encoding="ascii").splitlines():
+    digest, name = line.split("  ", 1)
+    check(hashlib.sha256((release / name).read_bytes()).hexdigest().upper() == digest, f"checksum {name}")
+versioned = (ROOT / "checksums/GIB2A-V26.3.6.sha256").read_text(encoding="ascii")
+check(EXPECTED_HASH in versioned, "versioned source checksum")
+for line in checksum_file.read_text(encoding="ascii").splitlines():
+    check(line in versioned, "versioned ZIP checksum")
 if errors:
     print(f"Result: FAIL ({len(errors)} error(s))")
     sys.exit(1)

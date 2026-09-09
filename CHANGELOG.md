@@ -1,5 +1,16 @@
 # Changelog
 
+## [26.3.6] - 2026-09-09
+
+### Changed
+- Refined MEDIUM NARROW radii to RPM/EGT 62 px and PUMP 42 px at 480x320.
+- Lowered RPM/EGT values by 2 px in MEDIUM NARROW; retained automatic font fitting.
+- Activated narrow side panels using actual vertical clearance (minimum 121 px).
+- No telemetry, alarm, persistence or other layout-profile changes.
+
+### Fixed
+- Corrected the registered ETHOS widget title from "Widjet" to "Widget".
+
 ## [26.3.5] - 2026-09-08
 
 ### Added

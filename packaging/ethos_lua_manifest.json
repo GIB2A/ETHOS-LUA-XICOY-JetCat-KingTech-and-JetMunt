@@ -1,11 +1,11 @@
 {
   "manifestVersion": 1,
-  "name": "GIB2A Xicoy ProHub Telemetry Widget",
-  "key": "com.gib2a.ethos.xicoyprohub",
-  "version": "26.3.5",
+  "name": "GIB2A Turbine Telemetry Widget",
+  "key": "com.gib2a.ethos.turbinetelemetry",
+  "version": "26.3.6",
   "releaseNotes": {
     "format": "markdown",
-    "content": "## V26.3.5\n\n- Added Enjet V1.53 mono-turbine Auto Bind fallback by exact sensor name.\n- Improved responsive layouts for X14/X14RS and X18/X18S.\n- Added gauge-value auto-fit and wide-layout telemetry panels.\n- Added JetCat and Xicoy FrSky Sensor ID reference sheets."
+    "content": "# GIB2A V26.3.6\n\n## Display\n\n- Refined MEDIUM NARROW dashboard geometry.\n- MEDIUM NARROW applies for non-small layouts from 460 px inclusive to below 600 px.\n- Increased RPM/EGT gauge size.\n- Adjusted PUMP gauge size.\n- RPM/EGT numeric values moved 2 px downward in this layout.\n- Automatic gauge-value font fitting remains enabled.\n- Narrow side panels are enabled according to available vertical clearance using the 121 px threshold.\n- FULL 800x480 geometry remains unchanged.\n\n## Widget identification\n\n- Corrected the registered ETHOS widget title from \"Widjet\" to \"Widget\".\n- Registered title is now: GIB2A TURBINE Widget V26.3.6."
   },
   "folder": "GIB2A",
   "files": [

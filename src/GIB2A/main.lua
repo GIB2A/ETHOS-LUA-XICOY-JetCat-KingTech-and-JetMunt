@@ -1,5 +1,5 @@
--- GIB2A TURBINE Widjet V26.3.5
--- Widget de télémétrie turbine multi-ECU pour ETHOS
+-- GIB2A Turbine Telemetry Widget V26.3.6
+-- Multi-ECU turbine telemetry widget for FrSky ETHOS
 -- Compatibilité Xicoy ProHub, Enjet, Linton, KingTech, Swiwin et JetCat
 -- Modes Xicoy Basic, Extended et Maximum avec auto-bind des capteurs
 -- Affichage RPM, EGT, pompe, carburant, statut ECU, THR radio et ECU THR
@@ -38,7 +38,7 @@ local TELEMETRY_MODE_BASIC = 0
 local TELEMETRY_MODE_EXTENDED = 1
 local TELEMETRY_MODE_MAXIMUM = 2
 local SETUP_MODE_SCHEMA = 2
-local WIDGET_VERSION = "26.3.5"
+local WIDGET_VERSION = "26.3.6"
 local FUEL_YELLOW_THRESHOLD = 50
 local FUEL_RED_THRESHOLD = 25
 local GIB2A_LOGO_PATH = "gib2a_logo_ethos_180.png"
@@ -1615,7 +1615,7 @@ local function fitGaugeValueFont(text, maxWidth, maxHeight, firstFont)
     return fallback, textW, textH
 end
 
-local function drawMainGauge(cx, cy, radius, value, label, unit, percent, palette, compact)
+local function drawMainGauge(cx, cy, radius, value, label, unit, percent, palette, compact, mediumNarrow)
     drawSegmentedGauge(cx, cy, radius, percent, 110, palette)
     local labelY = unit ~= "" and (cy + (compact and 3 or 6))
         or (cy + (compact and 8 or 14))
@@ -1627,6 +1627,9 @@ local function drawMainGauge(cx, cy, radius, value, label, unit, percent, palett
     local valueFont, valueW, valueH = fitGaugeValueFont(
         value, maxValueWidth, maxValueHeight, compact and 2 or 1)
     local valueY = labelY - valueH - valueGap
+    if mediumNarrow then
+        valueY = valueY + 2 -- Keep a 1 px gap above the label.
+    end
     lcd.font(valueFont)
     lcd.color(palette.textColor)
     lcd.drawText(math.floor(cx - valueW / 2), math.floor(valueY), value, 0)
@@ -1767,7 +1770,15 @@ local function getDashboardLayout(w, h)
         gaugeY = math.floor(h * 0.63)
         pumpY = gaugeY
     end
-    local showPanels = (not small) and w >= 600 and h >= 320
+    local mediumNarrow = (not small) and w >= 460 and w < 600
+    if mediumNarrow then
+        bigR = math.floor(math.min(w * 0.1292, h * 0.194))
+        pumpR = math.floor(math.min(w * 0.0875, h * 0.132))
+    end
+    local panelAvailableHeight = math.max(1, gaugeY - bigR - margin - 2)
+    local narrowPanelsFit = mediumNarrow and panelAvailableHeight >= 121
+    local widePanels = (not small) and w >= 600 and h >= 320
+    local showPanels = widePanels or narrowPanelsFit
 
     return true, small, margin, gaugeY, bigR,
         pumpY, pumpR, fuelY, showPanels
@@ -1876,9 +1887,9 @@ local function paint(widget)
         pumpMax = widget.pumpMax or 100
     end
     drawMainGauge(math.floor(w * 0.235), gaugeY, bigR, dashboardValue(rpm), "RPM", "",
-        mapToPercentRaw(rpm, rpmMax), palette, compact)
+        mapToPercentRaw(rpm, rpmMax), palette, compact, compact and not small and w >= 460 and w < 600)
     drawMainGauge(math.floor(w * 0.765), gaugeY, bigR, dashboardValue(egt), "EGT", "",
-        mapToPercentRaw(egt, egtMax), palette, compact)
+        mapToPercentRaw(egt, egtMax), palette, compact, compact and not small and w >= 460 and w < 600)
     local pumpDisplay = decodePumpDisplayValue(widget.ecuType, pumpRaw)
     local pumpText
     local pumpLabel = "PUMP"
@@ -2841,7 +2852,7 @@ local function init()
     loadGib2aLogo()
     system.registerWidget({
         key        = "GIB2A",
-			name       = "GIB2A TURBINE Widjet V" .. WIDGET_VERSION,
+			name       = "GIB2A TURBINE Widget V" .. WIDGET_VERSION,
         create     = create,
         wakeup     = wakeup,
         configure  = configure,

@@ -1,6 +1,6 @@
 # GIB2A FrSky ETHOS Turbine Telemetry
 
-GIB2A V26.3.5 est un widget Lua de télémétrie uniquement pour les radios FrSky
+GIB2A V26.3.6 est un widget Lua de télémétrie uniquement pour les radios FrSky
 ETHOS. Il affiche la télémétrie turbine et ECU ; il ne démarre, n’arrête, ne
 redémarre et ne commande jamais une turbine.
 
@@ -8,9 +8,9 @@ redémarre et ne commande jamais une turbine.
 
 ![Tableau de bord de télémétrie turbine GIB2A](assets/gib2a-widget-preview.png)
 
-[Télécharger GIB2A V26.3.5 pour ETHOS Suite](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/download/v26.3.5/GIB2A-Xicoy-ProHub-Widget-V26.3.5-ETHOS-Suite.zip)
+[Télécharger GIB2A V26.3.6 pour ETHOS Suite](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/download/v26.3.6/GIB2A-Xicoy-ProHub-Widget-V26.3.6-ETHOS-Suite.zip)
 
-> **Important :** désinstallez toute version précédente de GIB2A avant d’installer V26.3.5.
+> **Important :** désinstallez toute version précédente de GIB2A avant d’installer V26.3.6.
 
 ## Fonctions
 
@@ -52,13 +52,13 @@ La compatibilité JetMunt n’est pas revendiquée faute de démonstration.
 ## Installation
 
 Pour l’installation manuelle, télécharger le
-[package SD](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/download/v26.3.5/GIB2A-Xicoy-ProHub-Widget-V26.3.5-SD.zip)
+[package SD](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/download/v26.3.6/GIB2A-Xicoy-ProHub-Widget-V26.3.6-SD.zip)
 et l’extraire afin d’obtenir exactement
 `SCRIPTS/GIB2A/main.lua` et
 `SCRIPTS/GIB2A/gib2a_logo_ethos_180.png`, redémarrer la radio puis ajouter le
 widget `GIB2A`.
 Pour ETHOS Suite, utiliser le
-[package ETHOS Suite](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/download/v26.3.5/GIB2A-Xicoy-ProHub-Widget-V26.3.5-ETHOS-Suite.zip)
+[package ETHOS Suite](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/download/v26.3.6/GIB2A-Xicoy-ProHub-Widget-V26.3.6-ETHOS-Suite.zip)
 dédié dont le schéma de manifeste et
 la structure à la racine proviennent du paquet officiel V1.1. Voir
 [Installation](docs/INSTALLATION.md).
@@ -85,11 +85,13 @@ procédures fabricants restent prioritaires. Voir [Avertissement](docs/DISCLAIME
 
 - [Dépôt du projet](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry)
 - [Versions publiées](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases)
+- [Version V26.3.6](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/tag/v26.3.6)
 - [Version V26.3.5](https://github.com/GIB2A/GIB2A-FrSky-ETHOS-Turbine-Telemetry/releases/tag/v26.3.5)
 - [Compatibilité](docs/COMPATIBILITY.md)
 - [Configuration](docs/CONFIGURATION.md)
 - [Installation](docs/INSTALLATION.md)
 - [Dépannage](docs/TROUBLESHOOTING.md)
+- [Notes V26.3.6](docs/release-notes/V26.3.6.md)
 - [Notes V26.3.5](docs/release-notes/V26.3.5.md)
 - [Xicoy ProHub - Référence des Sensor IDs FrSky](docs/references/GIB2A_Xicoy_ProHub_FrSky_Sensor_ID_Reference.pdf)
 - [JetCat - Référence des Sensor IDs FrSky](docs/references/GIB2A_JetCat_FrSky_Sensor_ID_Reference.pdf)
